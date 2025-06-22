@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.env
+.DS_Store
+*.log
+
+.github/copilot-instructions.md
+.vscode/
+
+# Ignore all PortAudio binaries except those in native/bin/{platform}/
+build/

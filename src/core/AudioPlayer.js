@@ -1,0 +1,849 @@
+/**
+ * @module AudioPlayer
+ * @author zevinDev
+ * @description Modular Node.js Lossless Audio Player (PortAudio + FFmpeg)
+ */
+
+import { EventEmitter } from 'events';
+import { DeviceManager } from './DeviceManager.js';
+import { PlaylistManager } from './PlaylistManager.js';
+import { AudioEffects } from './AudioEffects.js';
+import { StreamManager } from './StreamManager.js';
+import { locateFFmpeg, extractMetadata, getAudioInfo, buildFFmpegArgs, createFFmpegProcess, killFFmpegProcess } from '../utils/FFmpegUtils.js';
+import { negotiateAudioFormat, scalePCMVolume } from '../utils/AudioUtils.js';
+import { handleError, validateParams } from '../utils/ErrorHandler.js';
+
+/**
+ * AudioPlayer class provides the main API for playback control.
+ * Modular design with separate managers for devices, playlists, effects, and streaming.
+ * 
+ * Emits events: 'play', 'pause', 'resume', 'stop', 'trackEnd', 'playlistEnd', 'error', etc.
+ * @class
+ * @extends EventEmitter
+ * @author zevinDev
+ * @example
+ * import { AudioPlayer } from './src/AudioPlayer.js';
+ * const player = new AudioPlayer();
+ * player.on('play', (track) => console.log('Now playing:', track));
+ * player.on('error', (err) => console.error('Playback error:', err));
+ * await player.play('track.flac');
+ */
+export class AudioPlayer extends EventEmitter {
+  /**
+   * @constructor
+   */
+  constructor() {
+    super();
+    
+    // Core state
+    this._isPlaying = false;
+    this._currentTrack = null;
+    this._paused = false;
+    this._volume = 1.0;
+    this._bufferSize = null;
+    
+    // FFmpeg and PortAudio
+    this._ffmpegPath = null;
+    this._ffmpegProcess = null;
+    this._audioStream = null;
+    
+    // Visualization and callbacks
+    this._visualizationCallback = null;
+    
+    // Buffer state for async streaming
+    this._audioBuffer = [];
+    this._audioBufferSize = 0;
+    this._ffmpegEnded = false;
+    
+    // Manager instances (composition pattern)
+    this._deviceManager = new DeviceManager();
+    this._playlistManager = new PlaylistManager();
+    this._audioEffects = new AudioEffects();
+    this._streamManager = new StreamManager();
+    
+    // Debug timing properties
+    this._lastCallbackLog = 0;
+    this._lastDataLog = 0;
+    this._lastSilenceLog = 0;
+    
+    // Bind event handlers
+    this._setupEventHandlers();
+  }
+
+  /**
+   * Set up internal event handlers for manager coordination.
+   * 
+   * @private
+   * @author zevinDev
+   */
+  _setupEventHandlers() {
+    // Forward device manager events
+    this._deviceManager.on?.('deviceChange', (info) => this.emit('deviceChange', info));
+    this._deviceManager.on?.('deviceError', (error) => this.emit('deviceError', error));
+    
+    // Forward stream manager events
+    this._streamManager.on?.('streamError', (error) => this.emit('streamError', error));
+    this._streamManager.on?.('streamReconnect', (info) => this.emit('streamReconnect', info));
+    this._streamManager.on?.('streamBuffering', (isBuffering) => this.emit('streamBuffering', isBuffering));
+  }
+
+  /**
+   * Play an audio file using ffmpeg for decoding and PortAudio for output.
+   * Uses async streaming with buffer management and error handling.
+   * 
+   * @param {string} filePath - Path to the audio file
+   * @param {number} [startPosition=0] - Position in seconds to start playback
+   * @returns {Promise<void>}
+   * @throws {Error} If playback fails or ffmpeg/PortAudio is not available
+   * @author zevinDev
+   */
+  async play(filePath, startPosition = 0) {
+    try {
+      validateParams({ filePath });
+      if (typeof startPosition !== 'number' || isNaN(startPosition) || startPosition < 0) startPosition = 0;
+      if (this._isPlaying) {
+        await this.stop();
+      }
+      if (!this._ffmpegPath) {
+        this._ffmpegPath = await locateFFmpeg();
+      }
+      const portaudio = await this._deviceManager.getPortAudio();
+      if (!portaudio || typeof portaudio.openStreamAsync !== 'function') {
+        throw new Error('PortAudio binding or openStreamAsync() not available');
+      }
+      this._currentTrack = filePath;
+      this._isPlaying = true;
+      this._paused = false;
+      this._audioBuffer = [];
+      this._audioBufferSize = 0;
+      this._ffmpegEnded = false;
+      const trackInfo = await getAudioInfo(filePath);
+      const currentDevice = this._deviceManager.getCurrentDevice();
+      if (!currentDevice) {
+        const defaultDevice = await this._deviceManager.getDefaultDevice();
+        await this._deviceManager.setOutputDevice(defaultDevice.index);
+      }
+      const device = this._deviceManager.getCurrentDevice();
+      const audioFormat = negotiateAudioFormat(trackInfo, device);
+      
+      // Create FFmpeg process with fast startup flags
+      const ffmpegArgs = buildFFmpegArgs({
+        input: filePath,
+        sampleRate: audioFormat.sampleRate,
+        channels: audioFormat.channels,
+        seekPosition: startPosition,
+        // Fast startup flags to reduce FFmpeg pre-scan time
+        extra: [
+          '-nostdin',
+          '-hide_banner',
+          '-analyzeduration', '32k',
+          '-probesize', '32k',
+          '-read_ahead_limit', '0'
+        ]
+      });
+      
+      const ffmpeg = createFFmpegProcess(this._ffmpegPath, ffmpegArgs);
+      this._ffmpegProcess = ffmpeg;
+      
+      // Set up PCM streaming queue instead of prebuffering entire track
+      let pcmQueue = [];
+      let ffmpegEnded = false;
+
+      ffmpeg.stdout.on('data', chunk => {
+        pcmQueue.push(chunk);
+        if (this._visualizationCallback) {
+          try {
+            this._visualizationCallback(chunk);
+          } catch (error) {
+            console.warn('[AudioPlayer] Visualization callback error:', error.message);
+          }
+        }
+      });
+      
+      ffmpeg.stderr.on('data', data => {
+        // Log FFmpeg errors if needed
+        console.warn('[AudioPlayer] FFmpeg stderr:', data.toString());
+      });
+      
+      ffmpeg.on('close', code => {
+        ffmpegEnded = true;
+        this._ffmpegEnded = true;
+        if (code !== 0) {
+          console.warn('[AudioPlayer] FFmpeg exited with code:', code);
+        }
+      });
+      
+      ffmpeg.on('error', err => {
+        this._isPlaying = false;
+        this.emit('error', err);
+        handleError(err, 'play/ffmpeg', this);
+      });
+      
+      // Set up PortAudio stream
+      const framesPerBuffer = this._bufferSize ?? 2048;
+      const streamOpts = {
+        device: device.index,
+        channels: audioFormat.channels,
+        sampleRate: audioFormat.sampleRate,
+        framesPerBuffer
+      };
+      
+      // Audio callback for PortAudio
+      const audioCallback = (outBuffer) => {
+        if (!this._isPlaying || this._paused) {
+          outBuffer.fill(0);
+          return;
+        }
+        // Stream PCM data from queue to outBuffer
+        let offset = 0;
+        while (pcmQueue.length && offset < outBuffer.length) {
+          const chunk = pcmQueue[0];
+          const toCopy = Math.min(chunk.length, outBuffer.length - offset);
+          chunk.copy(outBuffer, offset, 0, toCopy);
+          offset += toCopy;
+          if (toCopy < chunk.length) {
+            pcmQueue[0] = chunk.slice(toCopy);
+          } else {
+            pcmQueue.shift();
+          }
+        }
+        if (offset < outBuffer.length) {
+          outBuffer.fill(0, offset); // Zero-fill if underrun
+        }
+        // Apply volume if not in bit-perfect mode and volume is not 1.0
+        if (!this._audioEffects.isBitPerfectMode() && this._volume !== 1.0) {
+          const volumeBuffer = scalePCMVolume(outBuffer, this._volume);
+          volumeBuffer.copy(outBuffer);
+        }
+      };
+      
+      // Open audio stream
+      const streamId = await portaudio.openStreamAsync(streamOpts, audioCallback);
+      this._audioStream = streamId;
+      
+      this.emit('play', filePath);
+      
+      // Monitor for track end
+      const checkEnd = () => {
+        if (ffmpegEnded && pcmQueue.length === 0) {
+          this._isPlaying = false;
+          this.emit('trackEnd', filePath);
+          
+          // Handle playlist continuation
+          if (this._playlistManager.isPlaylistActive()) {
+            this._handlePlaylistNext();
+          }
+          
+          portaudio.closeStream(streamId);
+        } else if (this._isPlaying) {
+          setTimeout(checkEnd, 100);
+        }
+      };
+      
+      checkEnd();
+      
+    } catch (error) {
+      this._isPlaying = false;
+      this.emit('error', error);
+      handleError(error, 'play', this);
+      throw error;
+    }
+  }
+
+  /**
+   * Handle automatic playlist progression.
+   * 
+   * @private
+   * @author zevinDev
+   */
+  async _handlePlaylistNext() {
+    try {
+      const result = this._playlistManager.navigateNext();
+      if (result.hasNext) {
+        await this.play(result.track);
+      } else {
+        this._playlistManager.stopPlaylist();
+        this.emit('playlistEnd', this._playlistManager.getPlaylistCopy());
+      }
+    } catch (error) {
+      handleError(error, 'playlistNext', this);
+    }
+  }
+
+  /**
+   * Pause playback.
+   * 
+   * @returns {Promise<void>}
+   * @throws {Error} If pause fails
+   * @fires AudioPlayer#pause
+   * @author zevinDev
+   */
+  async pause() {
+    try {
+      if (!this._isPlaying || this._paused) return;
+      
+      this._paused = true;
+      
+      if (this._audioStream && typeof this._audioStream.pause === 'function') {
+        this._audioStream.pause();
+      }
+      
+      this.emit('pause', this._currentTrack);
+    } catch (error) {
+      this.emit('error', error);
+      handleError(error, 'pause', this);
+      throw error;
+    }
+  }
+
+  /**
+   * Resume playback.
+   * 
+   * @returns {Promise<void>}
+   * @throws {Error} If resume fails
+   * @fires AudioPlayer#resume
+   * @author zevinDev
+   */
+  async resume() {
+    try {
+      if (!this._isPlaying || !this._paused) return;
+      
+      this._paused = false;
+      
+      if (this._audioStream && typeof this._audioStream.resume === 'function') {
+        this._audioStream.resume();
+      }
+      
+      this.emit('resume', this._currentTrack);
+    } catch (error) {
+      this.emit('error', error);
+      handleError(error, 'resume', this);
+      throw error;
+    }
+  }
+
+  /**
+   * Stop playback and clean up resources.
+   * 
+   * @returns {Promise<void>}
+   * @throws {Error} If stop fails
+   * @fires AudioPlayer#stop
+   * @author zevinDev
+   */
+  async stop() {
+    try {
+      this._isPlaying = false;
+      this._paused = false;
+      const prevTrack = this._currentTrack;
+      this._currentTrack = null;
+      
+      // Clean up buffer state
+      this._audioBuffer = [];
+      this._audioBufferSize = 0;
+      this._ffmpegEnded = false;
+      
+      // Terminate ffmpeg process
+      if (this._ffmpegProcess) {
+        killFFmpegProcess(this._ffmpegProcess);
+        this._ffmpegProcess = null;
+      }
+      
+      // Close PortAudio stream
+      if (this._audioStream) {
+        try {
+          const portaudio = await this._deviceManager.getPortAudio();
+          if (portaudio && portaudio.closeStream) {
+            portaudio.closeStream(this._audioStream);
+          }
+        } catch (error) {
+          console.warn('[AudioPlayer] Error closing audio stream:', error.message);
+        }
+        this._audioStream = null;
+      }
+      
+      // Clean up audio effects resources
+      this._audioEffects.cleanupGapless();
+      
+      // Clean up streaming resources
+      this._streamManager.cleanup();
+      
+      this.emit('stop', prevTrack);
+    } catch (error) {
+      this.emit('error', error);
+      handleError(error, 'stop', this);
+      throw error;
+    }
+  }
+
+  /**
+   * Seek to a specific position in the current track.
+   * 
+   * @param {number} positionSeconds - Position in seconds
+   * @returns {Promise<void>}
+   * @throws {Error} If seeking fails
+   * @fires AudioPlayer#seek
+   * @author zevinDev
+   */
+  async seek(positionSeconds) {
+    try {
+      validateParams({ seekPosition: positionSeconds });
+      if (!this._currentTrack) {
+        throw new Error('No track loaded.');
+      }
+      await this.play(this._currentTrack, positionSeconds);
+      this.emit('seek', { track: this._currentTrack, position: positionSeconds });
+    } catch (error) {
+      this.emit('error', error);
+      handleError(error, 'seek', this);
+      throw error;
+    }
+  }
+
+  /**
+   * Set playback volume.
+   * 
+   * @param {number} level - Volume level between 0.0 and 1.0
+   * @returns {Promise<void>}
+   * @throws {Error} If setting volume fails or in bit-perfect mode
+   * @author zevinDev
+   */
+  async setVolume(level) {
+    try {
+      this._audioEffects.validateEffectAvailability('volume');
+      validateParams({ volume: level });
+      
+      this._volume = level;
+      
+      if (this._audioStream && typeof this._audioStream.setVolume === 'function') {
+        this._audioStream.setVolume(level);
+      }
+      
+      this.emit('volumeChange', level);
+    } catch (error) {
+      this.emit('error', error);
+      handleError(error, 'setVolume', this);
+      throw error;
+    }
+  }
+
+  /**
+   * Get current volume level.
+   * 
+   * @returns {number} Current volume (0.0-1.0)
+   * @author zevinDev
+   */
+  getVolume() {
+    return this._volume;
+  }
+
+  /**
+   * Extract metadata from the current track.
+   * 
+   * @returns {Promise<Object>} Metadata object
+   * @throws {Error} If extraction fails or no track loaded
+   * @author zevinDev
+   */
+  async getMetadata() {
+    try {
+      if (!this._currentTrack) {
+        throw new Error('No track loaded.');
+      }
+      
+      if (!this._ffmpegPath) {
+        this._ffmpegPath = await locateFFmpeg();
+      }
+      
+      return await extractMetadata(this._currentTrack, this._ffmpegPath);
+    } catch (error) {
+      handleError(error, 'getMetadata', this);
+      throw error;
+    }
+  }
+
+  /**
+   * Play a playlist of audio files sequentially.
+   * 
+   * @param {string[]} playlist - Array of file paths
+   * @returns {Promise<void>}
+   * @throws {Error} If playlist is invalid or playback fails
+   * @fires AudioPlayer#playlistEnd
+   * @author zevinDev
+   */
+  async playPlaylist(playlist) {
+    try {
+      this._playlistManager.loadPlaylist(playlist);
+      
+      // Start with first track
+      const firstTrack = this._playlistManager.getCurrentTrack();
+      if (firstTrack) {
+        await this.play(firstTrack);
+      }
+    } catch (error) {
+      this.emit('error', error);
+      handleError(error, 'playPlaylist', this);
+      throw error;
+    }
+  }
+
+  /**
+   * Skip to the next track in the playlist.
+   * 
+   * @returns {Promise<void>}
+   * @author zevinDev
+   */
+  async skip() {
+    try {
+      if (!this._playlistManager.isPlaylistActive()) return;
+      
+      const result = this._playlistManager.navigateNext();
+      if (result.hasNext) {
+        await this.stop();
+        await this.play(result.track);
+      }
+    } catch (error) {
+      handleError(error, 'skip', this);
+    }
+  }
+
+  /**
+   * Skip to the previous track in the playlist.
+   * 
+   * @returns {Promise<void>}
+   * @author zevinDev
+   */
+  async previous() {
+    try {
+      if (!this._playlistManager.isPlaylistActive()) return;
+      
+      const result = this._playlistManager.navigatePrevious();
+      if (result.hasPrevious) {
+        await this.stop();
+        await this.play(result.track);
+      }
+    } catch (error) {
+      handleError(error, 'previous', this);
+    }
+  }
+
+  /**
+   * Stop playlist playback.
+   * 
+   * @author zevinDev
+   */
+  stopPlaylist() {
+    this._playlistManager.stopPlaylist();
+    this.stop();
+  }
+
+  /**
+   * Enable or disable shuffle mode for playlists.
+   * 
+   * @param {boolean} [enable=true] - Enable shuffle if true
+   * @author zevinDev
+   */
+  setPlaylistShuffle(enable = true) {
+    this._playlistManager.setPlaylistShuffle(enable);
+  }
+
+  /**
+   * Set repeat mode for playlists.
+   * 
+   * @param {'off'|'one'|'all'} mode - Repeat mode
+   * @throws {Error} If invalid repeat mode
+   * @author zevinDev
+   */
+  setPlaylistRepeat(mode = 'off') {
+    this._playlistManager.setPlaylistRepeat(mode);
+  }
+
+  /**
+   * Enable gapless playback for the next track.
+   * 
+   * @param {string} nextTrack - Path to the next audio file
+   * @returns {Promise<void>}
+   * @throws {Error} If bit-perfect mode is enabled
+   * @author zevinDev
+   */
+  async playGapless(nextTrack) {
+    try {
+      this._audioEffects.validateEffectAvailability('gapless');
+      
+      if (!this._isPlaying || !this._currentTrack) {
+        await this.play(nextTrack);
+        return;
+      }
+      
+      if (!this._audioStream) {
+        throw new Error('No active audio stream for gapless playback.');
+      }
+      
+      // Prebuffer the next track
+      const result = await this._audioEffects.prebufferNextTrack(
+        nextTrack, 
+        this._ffmpegPath,
+        { sampleRate: 44100, channels: 2 }
+      );
+      
+      // Wait for the current track to end and seamlessly transition
+      this._audioStream.once('finish', async () => {
+        const isReady = await this._audioEffects.waitForGaplessReady(2000);
+        
+        if (!isReady) {
+          handleError(new Error('Next track not ready for gapless playback.'), 'playGapless', this);
+          return;
+        }
+        
+        const buffers = this._audioEffects.getGaplessBuffers();
+        if (buffers) {
+          const portaudio = await this._deviceManager.getPortAudio();
+          for (const buf of buffers) {
+            if (this._visualizationCallback) {
+              try {
+                this._visualizationCallback(buf);
+              } catch {}
+            }
+            portaudio.writeStream(buf, this._audioStream);
+          }
+        }
+        
+        this._currentTrack = nextTrack;
+        this.emit('play', nextTrack);
+      });
+      
+    } catch (error) {
+      handleError(error, 'playGapless', this);
+      throw error;
+    }
+  }
+
+  /**
+   * Crossfade between the current and next track.
+   * 
+   * @param {string} nextTrack - Path to the next audio file
+   * @param {number} [duration=3] - Crossfade duration in seconds
+   * @returns {Promise<void>}
+   * @throws {Error} If bit-perfect mode is enabled
+   * @author zevinDev
+   */
+  async crossfadeTo(nextTrack, duration = 3) {
+    try {
+      this._audioEffects.validateEffectAvailability('crossfade');
+      
+      if (!this._isPlaying || !this._currentTrack) {
+        await this.play(nextTrack);
+        return;
+      }
+      
+      if (!this._audioStream) {
+        throw new Error('No active audio stream for crossfade.');
+      }
+      
+      // This is a simplified version - full implementation would require
+      // more complex PCM buffer management and mixing
+      console.warn('[AudioPlayer] Crossfade implementation simplified in modular version');
+      
+      // For now, just stop current and play next
+      await this.stop();
+      await this.play(nextTrack);
+      
+    } catch (error) {
+      handleError(error, 'crossfadeTo', this);
+      throw error;
+    }
+  }
+
+  /**
+   * Play from a streaming source.
+   * 
+   * @param {string} url - Streaming source URL
+   * @param {object} [options] - Streaming options
+   * @returns {Promise<void>}
+   * @throws {Error} If streaming fails
+   * @author zevinDev
+   */
+  async playStream(url, options = {}) {
+    try {
+      if (this._isPlaying) {
+        await this.stop();
+      }
+      
+      if (!this._ffmpegPath) {
+        this._ffmpegPath = await locateFFmpeg();
+      }
+      
+      const portaudio = await this._deviceManager.getPortAudio();
+      const outputDevice = this._deviceManager.getCurrentDevice();
+      
+      const streamOptions = {
+        ffmpegPath: this._ffmpegPath,
+        portaudio,
+        audioStream: this._audioStream,
+        outputDevice,
+        bufferSize: this._bufferSize,
+        visualizationCallback: this._visualizationCallback,
+        emitter: this,
+        ...options
+      };
+      
+      this._currentTrack = url;
+      await this._streamManager.playStream(url, streamOptions);
+      
+    } catch (error) {
+      this.emit('error', error);
+      handleError(error, 'playStream', this);
+      throw error;
+    }
+  }
+
+  /**
+   * List available PortAudio output devices.
+   * 
+   * @returns {Promise<Array>} Array of device objects
+   * @author zevinDev
+   */
+  static async listOutputDevices() {
+    const deviceManager = new DeviceManager();
+    return await deviceManager.listOutputDevices();
+  }
+
+  /**
+   * Set the output device for playback.
+   * 
+   * @param {number} deviceIndex - Device index
+   * @returns {Promise<void>}
+   * @throws {Error} If device is not found or not output-capable
+   * @fires AudioPlayer#deviceChange
+   * @author zevinDev
+   */
+  async setOutputDevice(deviceIndex) {
+    try {
+      const result = await this._deviceManager.setOutputDevice(deviceIndex);
+      
+      if (result.changed) {
+        this.emit('deviceChange', {
+          index: result.device.index,
+          name: result.device.name,
+          info: result.device
+        });
+        
+        // If currently playing, restart with new device
+        if (this._isPlaying) {
+          const track = this._currentTrack;
+          await this.stop();
+          await this.play(track);
+        }
+      }
+    } catch (error) {
+      this.emit('deviceError', error);
+      handleError(error, 'setOutputDevice', this);
+      throw error;
+    }
+  }
+
+  /**
+   * Enable or disable bit-perfect output mode.
+   * 
+   * @param {boolean|object} options - Bit-perfect options
+   * @returns {Promise<void>}
+   * @throws {Error} If currently playing and unable to restart
+   * @author zevinDev
+   */
+  async setBitPerfect(options = true) {
+    try {
+      const config = this._audioEffects.setBitPerfect(options);
+      
+      if (config.requiresRestart && this._isPlaying) {
+        const track = this._currentTrack;
+        await this.stop();
+        await this.play(track);
+      }
+      
+      this.emit('bitPerfectChange', config);
+    } catch (error) {
+      this.emit('error', error);
+      handleError(error, 'setBitPerfect', this);
+      throw error;
+    }
+  }
+
+  /**
+   * Attach a visualization callback for PCM data.
+   * 
+   * @param {Function} callback - Function to receive PCM data
+   * @author zevinDev
+   */
+  onVisualization(callback) {
+    this._visualizationCallback = callback;
+  }
+
+  /**
+   * Set buffer size/latency for playback.
+   * 
+   * @param {number} frames - Buffer size in frames
+   * @author zevinDev
+   */
+  setBufferSize(frames) {
+    this._bufferSize = frames;
+  }
+
+  /**
+   * Set the crossfade duration.
+   * 
+   * @param {number} duration - Duration in seconds
+   * @fires AudioPlayer#crossfadeConfigChange
+   * @author zevinDev
+   */
+  setCrossfadeDuration(duration) {
+    this._audioEffects.setCrossfadeDuration(duration);
+    const config = this._audioEffects.getCrossfadeConfig();
+    this.emit('crossfadeConfigChange', config);
+  }
+
+  /**
+   * Set the crossfade curve.
+   * 
+   * @param {string} curve - Curve type
+   * @fires AudioPlayer#crossfadeConfigChange
+   * @author zevinDev
+   */
+  setCrossfadeCurve(curve) {
+    this._audioEffects.setCrossfadeCurve(curve);
+    const config = this._audioEffects.getCrossfadeConfig();
+    this.emit('crossfadeConfigChange', config);
+  }
+
+  /**
+   * Get current playback status.
+   * 
+   * @returns {object} Playback status
+   * @author zevinDev
+   */
+  getStatus() {
+    return {
+      isPlaying: this._isPlaying,
+      isPaused: this._paused,
+      currentTrack: this._currentTrack,
+      volume: this._volume,
+      bufferSize: this._bufferSize,
+      playlist: this._playlistManager.getPlaylistStatus(),
+      effects: this._audioEffects.getConfiguration(),
+      device: this._deviceManager.getCurrentDevice(),
+      streaming: this._streamManager.isStreaming()
+    };
+  }
+
+  /**
+   * Get manager instances for advanced usage.
+   * 
+   * @returns {object} Manager instances
+   * @author zevinDev
+   */
+  getManagers() {
+    return {
+      device: this._deviceManager,
+      playlist: this._playlistManager,
+      effects: this._audioEffects,
+      stream: this._streamManager
+    };
+  }
+}

@@ -1,0 +1,31 @@
+# Set default behavior for all files to use LF line endings
+* text=auto
+
+# Ensure specific file types are treated as text
+*.js text
+*.jsx text
+*.ts text
+*.tsx text
+*.json text
+*.css text
+*.scss text
+*.html text
+*.md text
+*.yaml text
+*.yml text
+*.txt text
+
+# Ensure specific file types are treated as binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.zip binary
+*.gz binary
+*.tgz binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
