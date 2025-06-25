@@ -112,8 +112,8 @@ async function main() {
         default:
           console.log('Unknown option.');
       }
-    } catch (err) {
-      console.error('[COMMAND ERROR]', err);
+    } catch (error) {
+      console.error('[COMMAND ERROR]', error);
     }
   }
   console.log('Exiting manual test.');

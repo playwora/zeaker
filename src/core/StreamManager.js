@@ -231,7 +231,7 @@ export class StreamManager {
     let got = null;
     try { 
       got = (await import('got')).default; 
-    } catch {}
+    } catch (error) {}
 
     const onStreamError = err => {
       if (emitter) {

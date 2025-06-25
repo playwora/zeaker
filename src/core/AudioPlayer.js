@@ -600,7 +600,7 @@ export class AudioPlayer extends EventEmitter {
             if (this._visualizationCallback) {
               try {
                 this._visualizationCallback(buf);
-              } catch {}
+              } catch (error) {}
             }
             portaudio.writeStream(buf, this._audioStream);
           }

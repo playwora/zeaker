@@ -31,8 +31,8 @@ export async function getAudioStreamInfo(ffprobePath, filePath) {
         } else {
           reject(new Error('No audio stream info found'));
         }
-      } catch (e) {
-        reject(e);
+      } catch (error) {
+        reject(error);
       }
     });
   });

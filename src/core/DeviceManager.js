@@ -6,8 +6,6 @@
 
 import { handleError } from '../utils/ErrorHandler.js';
 import { createRequire } from 'module';
-import { fileURLToPath } from 'url';
-import path from 'path';
 const require = createRequire(import.meta.url);
 
 /**
@@ -32,12 +30,10 @@ export class DeviceManager {
    */
   async _initPortAudio() {
     if (!this._portaudio) {
-      // Use node-gyp-build to load the native binding relative to the built file
-      const __filename = fileURLToPath(import.meta.url);
-      const __dirname = path.dirname(__filename);
+      // Use node-gyp-build to load the native binding relative to the project root
       try {
-        this._portaudio = require('node-gyp-build')(__dirname);
-      } catch (e) {
+        this._portaudio = require('node-gyp-build')(process.cwd());
+      } catch (error) {
         this._portaudio = null;
       }
       if (!this._portaudio || typeof this._portaudio.getDevices !== 'function') {
