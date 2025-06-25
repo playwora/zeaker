@@ -1,4 +1,4 @@
-import { AudioPlayer } from '../src/index.js';
+import { AudioPlayer } from '../dist/esm/index.js';
 import fs from 'fs';
 import path from 'path';
 import readline from 'readline';

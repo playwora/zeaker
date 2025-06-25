@@ -5,10 +5,11 @@
  */
 
 import { fileURLToPath } from 'url';
-import os from 'os';
 import path from 'path';
-import ffmpegPath from 'ffmpeg-static';
-import ffprobePath from 'ffprobe-static';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+const ffmpegPath = require('ffmpeg-static');
+const ffprobePath = require('ffprobe-static');
 import { spawn } from 'node:child_process';
 import { getAudioStreamInfo } from './ffprobeUtil.js';
 

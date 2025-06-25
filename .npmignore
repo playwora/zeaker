@@ -1,0 +1,10 @@
+node_modules/
+dist/cjs/core/build/
+dist/esm/core/build/
+.github/
+.vscode/
+build/
+.env
+.DS_Store
+*.log
+

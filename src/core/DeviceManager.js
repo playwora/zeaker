@@ -5,6 +5,10 @@
  */
 
 import { handleError } from '../utils/ErrorHandler.js';
+import { createRequire } from 'module';
+import { fileURLToPath } from 'url';
+import path from 'path';
+const require = createRequire(import.meta.url);
 
 /**
  * DeviceManager handles audio device discovery and selection.
@@ -28,12 +32,17 @@ export class DeviceManager {
    */
   async _initPortAudio() {
     if (!this._portaudio) {
-      this._portaudio = (await import('../../native/index.js').catch(() => null))?.default;
-      
+      // Use node-gyp-build to load the native binding relative to the built file
+      const __filename = fileURLToPath(import.meta.url);
+      const __dirname = path.dirname(__filename);
+      try {
+        this._portaudio = require('node-gyp-build')(__dirname);
+      } catch (e) {
+        this._portaudio = null;
+      }
       if (!this._portaudio || typeof this._portaudio.getDevices !== 'function') {
         throw new Error('PortAudio binding or getDevices() not available.');
       }
-      
       await this._portaudio.init();
     }
     return this._portaudio;
