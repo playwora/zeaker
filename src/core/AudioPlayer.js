@@ -188,33 +188,58 @@ export class AudioPlayer extends EventEmitter {
         framesPerBuffer
       };
       
-      // Audio callback for PortAudio
-      const audioCallback = (outBuffer) => {
-        if (!this._isPlaying || this._paused) {
-          outBuffer.fill(0);
-          return;
-        }
-        // Stream PCM data from queue to outBuffer
-        let offset = 0;
-        while (pcmQueue.length && offset < outBuffer.length) {
-          const chunk = pcmQueue[0];
-          const toCopy = Math.min(chunk.length, outBuffer.length - offset);
-          chunk.copy(outBuffer, offset, 0, toCopy);
-          offset += toCopy;
-          if (toCopy < chunk.length) {
-            pcmQueue[0] = chunk.slice(toCopy);
-          } else {
-            pcmQueue.shift();
+      // Audio callback for PortAudio (new pattern: return buffer)
+      const audioCallback = () => {
+        const buffer = new Float32Array(framesPerBuffer * audioFormat.channels);
+        try {
+          if (!this._isPlaying || this._paused) {
+            buffer.fill(0);
+            return buffer;
           }
+          // Stream PCM data from queue to buffer
+          let offset = 0;
+          while (pcmQueue.length && offset < buffer.length) {
+            const chunk = pcmQueue[0];
+            let toCopy = 0;
+            if (Buffer.isBuffer(chunk)) {
+              toCopy = Math.min(chunk.length / 4, buffer.length - offset);
+              for (let i = 0; i < toCopy; ++i) {
+                buffer[offset + i] = chunk.readFloatLE(i * 4);
+              }
+            } else if (chunk instanceof Float32Array) {
+              toCopy = Math.min(chunk.length, buffer.length - offset);
+              buffer.set(chunk.subarray(0, toCopy), offset);
+            } else {
+              // Unknown chunk type, skip
+              console.warn('[AudioPlayer] Unknown PCM chunk type:', typeof chunk);
+              pcmQueue.shift();
+              continue;
+            }
+            offset += toCopy;
+            if (toCopy < (Buffer.isBuffer(chunk) ? chunk.length / 4 : chunk.length)) {
+              if (Buffer.isBuffer(chunk)) {
+                pcmQueue[0] = chunk.slice(toCopy * 4); // bytes
+              } else {
+                pcmQueue[0] = chunk.subarray(toCopy);
+              }
+            } else {
+              pcmQueue.shift();
+            }
+          }
+          if (offset < buffer.length) {
+            buffer.fill(0, offset); // Zero-fill if underrun
+          }
+          // Apply volume if not in bit-perfect mode and volume is not 1.0
+          if (!this._audioEffects.isBitPerfectMode() && this._volume !== 1.0) {
+            const volumeBuffer = scalePCMVolume(buffer, this._volume);
+            buffer.set(volumeBuffer);
+          }
+        } catch (err) {
+          // Robust: never throw from audio callback
+          buffer.fill(0);
+          console.error('[AudioPlayer] Exception in audioCallback:', err);
         }
-        if (offset < outBuffer.length) {
-          outBuffer.fill(0, offset); // Zero-fill if underrun
-        }
-        // Apply volume if not in bit-perfect mode and volume is not 1.0
-        if (!this._audioEffects.isBitPerfectMode() && this._volume !== 1.0) {
-          const volumeBuffer = scalePCMVolume(outBuffer, this._volume);
-          volumeBuffer.copy(outBuffer);
-        }
+        return buffer;
       };
       
       // Open audio stream
@@ -845,5 +870,60 @@ export class AudioPlayer extends EventEmitter {
       effects: this._audioEffects,
       stream: this._streamManager
     };
+  }
+
+  /**
+   * Test PortAudio output with a synchronous 440Hz sine wave (2 seconds).
+   * Useful for debugging C++/Electron buffer issues.
+   *
+   * @returns {Promise<void>}
+   * @author zevinDev
+   */
+  static async testSineWave() {
+    const deviceManager = new DeviceManager();
+    const portaudio = await deviceManager.getPortAudio();
+    if (!portaudio || typeof portaudio.openStreamAsync !== 'function') {
+      throw new Error('PortAudio binding or openStreamAsync() not available');
+    }
+    let device = await deviceManager.getCurrentDevice();
+    if (!device) {
+      device = await deviceManager.getDefaultDevice()
+      await deviceManager.setOutputDevice(device.index);
+      device = await deviceManager.getCurrentDevice();
+    }
+    const sampleRate = 44100;
+    const channels = 2;
+    const durationSec = 2;
+    const freq = 440;
+    const framesPerBuffer = 256;
+    let t = 0;
+    const dt = 1 / sampleRate;
+    const totalFrames = sampleRate * durationSec;
+    let framesPlayed = 0;
+    // New pattern: return a new buffer for each callback
+    const audioCallback = () => {
+      const buffer = new Float32Array(framesPerBuffer * channels);
+      for (let i = 0; i < buffer.length; i += channels) {
+        const sample = Math.sin(2 * Math.PI * freq * t);
+        for (let c = 0; c < channels; ++c) {
+          buffer[i + c] = sample;
+        }
+        t += dt;
+      }
+      framesPlayed += framesPerBuffer;
+      if (framesPlayed >= totalFrames) {
+        buffer.fill(0);
+      }
+      return buffer;
+    };
+    const streamOpts = {
+      device: device.index,
+      channels,
+      sampleRate,
+      framesPerBuffer
+    };
+    const streamId = await portaudio.openStreamAsync(streamOpts, audioCallback);
+    await new Promise(resolve => setTimeout(resolve, durationSec * 1000 + 200));
+    portaudio.closeStream(streamId);
   }
 }

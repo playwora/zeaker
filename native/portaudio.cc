@@ -1,3 +1,4 @@
+#define NODE_API_NO_EXTERNAL_BUFFERS_ALLOWED
 #include <napi.h>
 #include <portaudio.h>
 #include <memory>
@@ -357,13 +358,28 @@ static int AudioCallback(const void *input, void *output,
                          PaStreamCallbackFlags statusFlags,
                          void *userData)
 {
+  static int callCount = 0;
+  ++callCount;
   auto *tsfn = static_cast<Napi::ThreadSafeFunction *>(userData);
   float *out = static_cast<float *>(output);
-  // Call JS callback to fill output buffer
   napi_status status = tsfn->BlockingCall([out, frameCount](Napi::Env env, Napi::Function jsCallback)
                                           {
-    Napi::Buffer<float> buf = Napi::Buffer<float>::New(env, out, frameCount * 2); // stereo
-    jsCallback.Call({buf}); });
+    // New pattern: JS returns a buffer/array, we copy it into out
+    std::vector<float> tempBuf(frameCount * 2, 0.0f);
+    Napi::Value result = jsCallback.Call({});
+    if (result.IsTypedArray()) {
+      Napi::TypedArray arr = result.As<Napi::TypedArray>();
+      if (arr.TypedArrayType() == napi_float32_array) {
+        Napi::TypedArrayOf<float> f32arr = result.As<Napi::TypedArrayOf<float>>();
+        size_t n = std::min<size_t>(f32arr.ElementLength(), tempBuf.size());
+        std::copy(f32arr.Data(), f32arr.Data() + n, tempBuf.begin());
+      }
+    } else if (result.IsBuffer()) {
+      Napi::Buffer<float> buf = result.As<Napi::Buffer<float>>();
+      size_t n = std::min<size_t>(buf.Length(), tempBuf.size());
+      std::copy(buf.Data(), buf.Data() + n, tempBuf.begin());
+    }
+    std::copy(tempBuf.begin(), tempBuf.end(), out); });
   // Report underflow/overflow events
   if (statusFlags & paOutputUnderflow)
     EmitStreamEvent("outputUnderflow");

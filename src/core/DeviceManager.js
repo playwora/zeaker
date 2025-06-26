@@ -4,6 +4,7 @@
  * @description Manages audio device selection and configuration
  */
 
+import { fileURLToPath } from 'url';
 import { handleError } from '../utils/ErrorHandler.js';
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
@@ -31,13 +32,14 @@ export class DeviceManager {
   async _initPortAudio() {
     if (!this._portaudio) {
       // Use node-gyp-build to load the native binding relative to the project root
+      const gypDir = fileURLToPath(new URL('../../../', import.meta.url));
       try {
-        this._portaudio = require('node-gyp-build')(process.cwd());
+        this._portaudio = require('node-gyp-build')(gypDir);
       } catch (error) {
         this._portaudio = null;
       }
       if (!this._portaudio || typeof this._portaudio.getDevices !== 'function') {
-        throw new Error('PortAudio binding or getDevices() not available.');
+        throw new Error('PortAudio binding or getDevices() not available. Make sure the Native Binding is built correctly.');
       }
       await this._portaudio.init();
     }

@@ -1,14 +1,14 @@
 {
   "name": "zeaker",
-  "version": "1.1.4",
+  "version": "1.1.5",
   "main": "dist/cjs/index.js",
   "module": "dist/esm/index.js",
   "types": "./src/index.d.ts",
   "scripts": {
     "test": "node ./test/manual-audioplayer-device-test.js",
-    "install": "node-gyp configure && node-gyp build && node scripts/copy-portaudio.js",
+    "install": "node-gyp rebuild",
     "rebuild": "node-gyp rebuild",
-    "build": "rollup -c && node scripts/copy-portaudio.js"
+    "build": "rollup -c"
   },
   "keywords": [],
   "author": "zevinDev",
