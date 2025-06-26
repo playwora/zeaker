@@ -17,8 +17,8 @@ const jsdoc2md = require('jsdoc-to-markdown');
 async function generateDocs() {
   try {
     const srcDir = path.resolve(__dirname, '../src');
-    const docsDir = path.resolve(__dirname, '../docs');
-    const outputFile = path.join(docsDir, 'API.md');
+    const docsDir = path.resolve(__dirname, '../');
+    const outputFile = path.join(docsDir, 'DOCUMENTATION.md');
 
     // Find all .js files in src/ (non-recursive for simplicity)
     const files = fs.readdirSync(srcDir)

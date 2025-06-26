@@ -117,13 +117,76 @@ Zeaker provides robust error handling and user-friendly messages. Listen for the
 
 ## API Reference
 
-See JSDoc comments in the source for full API details. Key classes:
+Zeaker exposes a modular, event-driven API. Below is a summary of the main modules and their key methods. For full details, see the source JSDoc or [DOCUMENTATION.md](DOCUMENTATION.md).
 
-- `AudioPlayer` — Main playback API
-- `DeviceManager` — Device selection
-- `PlaylistManager` — Playlist operations
-- `AudioEffects` — Gapless, crossfade, bit-perfect
-- `StreamManager` — HTTP/HTTPS streaming
+### Modules
+
+- **AudioPlayer** — Main playback API (play, pause, resume, stop, seek, volume, metadata, playlist, gapless, crossfade, streaming, device selection)
+- **DeviceManager** — Audio device discovery, selection, and validation
+- **PlaylistManager** — Playlist operations (load, shuffle, repeat, navigation)
+- **AudioEffects** — Advanced effects: gapless, crossfade, bit-perfect mode
+- **StreamManager** — HTTP/HTTPS streaming with buffering and reconnection
+- **AudioUtils** — Audio processing and format utilities
+- **ErrorHandler** — Centralized error handling utilities
+- **FFmpegUtils** — FFmpeg-related utilities for audio processing
+
+### Key Classes & Methods
+
+#### AudioPlayer
+- `play(filePath, [startPosition])` — Play an audio file
+- `pause()` / `resume()` / `stop()` — Playback controls
+- `seek(positionSeconds)` — Seek within track
+- `setVolume(level)` / `getVolume()` — Volume control
+- `getMetadata()` — Extract metadata from current track
+- `getDuration()` — Get track duration
+- `playPlaylist(playlist)` — Play a playlist
+- `skip()` / `previous()` — Playlist navigation
+- `setPlaylistShuffle([enable])` — Shuffle mode
+- `setPlaylistRepeat(mode)` — Repeat mode
+- `playGapless(nextTrack)` — Enable gapless playback
+- `crossfadeTo(nextTrack, [duration])` — Crossfade to next track
+- `playStream(url, [options])` — Play from streaming source
+- `setOutputDevice(deviceIndex)` — Select output device
+- `setBitPerfect(options)` — Enable/disable bit-perfect mode
+- `onVisualization(callback)` — PCM visualization
+- `setBufferSize(frames)` — Set buffer size
+- `setCrossfadeDuration(duration)` / `setCrossfadeCurve(curve)` — Crossfade config
+- `getStatus()` — Playback status
+- `getManagers()` — Access advanced managers
+- `getCurrentTime()` — Elapsed playback time
+- `listOutputDevices()` (static) — List output devices
+- `testSineWave()` (static) — Test output with sine wave
+
+#### DeviceManager
+- `listOutputDevices()` — List available output devices
+- `setOutputDevice(deviceIndex)` — Select output device
+- `getCurrentDevice()` — Get current device
+- `getDefaultDevice()` — Get default device
+- `findDeviceByName(deviceName, [exactMatch])` — Find device by name
+- `validateDeviceCapabilities(device, requirements)` — Validate device for playback
+
+#### PlaylistManager
+- `loadPlaylist(playlist)` — Load a new playlist
+- `setPlaylistShuffle([enable])` — Shuffle mode
+- `setPlaylistRepeat(mode)` — Repeat mode
+- `getPlaylistCopy()` — Get a copy of the playlist
+
+#### AudioEffects
+- `setBitPerfect(options)` — Enable/disable bit-perfect mode
+- `isBitPerfectMode()` — Check bit-perfect status
+- `setCrossfadeDuration(duration)` / `setCrossfadeCurve(curve)` — Crossfade config
+- `getCrossfadeConfig()` — Get crossfade config
+- `prebufferNextTrack(nextTrack, ffmpegPath, [audioFormat])` — Pre-buffer for gapless
+- `createCrossfade(currentBuffers, nextBuffers, sampleRate, channels, [duration])` — Create crossfade effect
+- `waitForGaplessReady([timeoutMs])` — Wait for gapless ready
+- `getGaplessBuffers()` — Get gapless buffers
+- `cleanupGapless()` — Clean up gapless resources
+- `getEffectAvailability()` — Check effect availability
+- `validateEffectAvailability(effectName)` — Validate effect usage
+- `getConfiguration()` — Get effects config
+
+#### StreamManager, AudioUtils, ErrorHandler, FFmpegUtils
+- See [DOCUMENTATION.md](DOCUMENTATION.md) for details on streaming, audio utilities, error handling, and FFmpeg helpers.
 
 ---
 
