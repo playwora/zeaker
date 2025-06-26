@@ -1,6 +1,6 @@
 {
   "name": "zeaker",
-  "version": "1.1.5",
+  "version": "1.1.6",
   "main": "dist/cjs/index.js",
   "module": "dist/esm/index.js",
   "types": "./src/index.d.ts",
@@ -15,7 +15,6 @@
   "license": "MIT",
   "description": "Node.js Lossless Audio Player (PortAudio + FFmpeg)",
   "dependencies": {
-
     "ffmpeg-static": "^5.2.0",
     "ffprobe-static": "^3.1.0",
     "node-addon-api": "^8.4.0",
@@ -25,6 +24,7 @@
     "@rollup/plugin-commonjs": "^28.0.6",
     "@rollup/plugin-node-resolve": "^16.0.1",
     "@rollup/plugin-terser": "^0.4.4",
+    "jsdoc-to-markdown": "^9.1.1",
     "rollup": "^2.79.2"
   }
 }

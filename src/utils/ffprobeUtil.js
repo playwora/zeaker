@@ -4,14 +4,14 @@ import { spawn } from 'node:child_process';
  * Get audio stream info (sample rate, channels) from a file using ffprobe.
  * @param {string} ffprobePath - Path to ffprobe executable.
  * @param {string} filePath - Path to audio file.
- * @returns {Promise<{sample_rate: number, channels: number}>}
+ * @returns {Promise<{sample_rate: number, channels: number, duration: number}>} - Audio stream info.
  */
 export async function getAudioStreamInfo(ffprobePath, filePath) {
   return new Promise((resolve, reject) => {
     const args = [
       '-v', 'error',
       '-select_streams', 'a:0',
-      '-show_entries', 'stream=sample_rate,channels',
+      '-show_entries', 'stream=sample_rate,channels : format=duration',
       '-of', 'json',
       filePath
     ];
@@ -26,7 +26,8 @@ export async function getAudioStreamInfo(ffprobePath, filePath) {
         if (json.streams && json.streams[0]) {
           resolve({
             sample_rate: Number(json.streams[0].sample_rate),
-            channels: Number(json.streams[0].channels)
+            channels: Number(json.streams[0].channels),
+            duration: Number(json.format.duration)
           });
         } else {
           reject(new Error('No audio stream info found'));

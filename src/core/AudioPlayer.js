@@ -17,15 +17,26 @@ import { handleError, validateParams } from '../utils/ErrorHandler.js';
  * AudioPlayer class provides the main API for playback control.
  * Modular design with separate managers for devices, playlists, effects, and streaming.
  * 
- * Emits events: 'play', 'pause', 'resume', 'stop', 'trackEnd', 'playlistEnd', 'error', etc.
+ * Emits events: 'play', 'pause', 'resume', 'stop', 'trackEnd', 'playlistEnd', 'error', 'currentTime', 'duration', etc.
+ *
+ * @event play - Fired when playback starts. Args: (track: string)
+ * @event pause - Fired when playback is paused. Args: (track: string)
+ * @event resume - Fired when playback resumes. Args: (track: string)
+ * @event stop - Fired when playback stops. Args: (track: string)
+ * @event trackEnd - Fired when a track finishes. Args: (track: string)
+ * @event playlistEnd - Fired when playlist finishes. Args: (playlist: string[])
+ * @event error - Fired on playback error. Args: (error: Error)
+ * @event currentTime - Fired every 250ms with current playback time. Args: (seconds: number)
+ * @event duration - Fired when track duration is available. Args: (duration: number)
+ * @event deviceChange, deviceError, streamError, streamReconnect, streamBuffering, bitPerfectChange, volumeChange, crossfadeConfigChange
+ *
  * @class
  * @extends EventEmitter
  * @author zevinDev
  * @example
  * import { AudioPlayer } from './src/AudioPlayer.js';
  * const player = new AudioPlayer();
- * player.on('play', (track) => console.log('Now playing:', track));
- * player.on('error', (err) => console.error('Playback error:', err));
+ * player.on('duration', (duration) => console.log('Track duration:', duration));
  * await player.play('track.flac');
  */
 export class AudioPlayer extends EventEmitter {
@@ -65,6 +76,14 @@ export class AudioPlayer extends EventEmitter {
     this._lastCallbackLog = 0;
     this._lastDataLog = 0;
     this._lastSilenceLog = 0;
+
+    // Playback time tracking
+    this._framesPlayed = 0;
+    this._currentSampleRate = 44100; // default, will be set on play
+    this._currentTimeInterval = null;
+
+    // Track duration (in seconds)
+    this._currentDuration = null;
     
     // Bind event handlers
     this._setupEventHandlers();
@@ -117,7 +136,13 @@ export class AudioPlayer extends EventEmitter {
       this._audioBuffer = [];
       this._audioBufferSize = 0;
       this._ffmpegEnded = false;
+      this._framesPlayed = 0;
+      this._currentDuration = null;
       const trackInfo = await getAudioInfo(filePath);
+      if (trackInfo && typeof trackInfo.duration === 'number') {
+        this._currentDuration = trackInfo.duration;
+        this.emit('duration', this._currentDuration);
+      }
       const currentDevice = this._deviceManager.getCurrentDevice();
       if (!currentDevice) {
         const defaultDevice = await this._deviceManager.getDefaultDevice();
@@ -125,6 +150,7 @@ export class AudioPlayer extends EventEmitter {
       }
       const device = this._deviceManager.getCurrentDevice();
       const audioFormat = negotiateAudioFormat(trackInfo, device);
+      this._currentSampleRate = audioFormat.sampleRate;
       
       // Create FFmpeg process with fast startup flags
       const ffmpegArgs = buildFFmpegArgs({
@@ -234,6 +260,8 @@ export class AudioPlayer extends EventEmitter {
             const volumeBuffer = scalePCMVolume(buffer, this._volume);
             buffer.set(volumeBuffer);
           }
+          // Track frames played for currentTime
+          this._framesPlayed += framesPerBuffer;
         } catch (err) {
           // Robust: never throw from audio callback
           buffer.fill(0);
@@ -248,10 +276,22 @@ export class AudioPlayer extends EventEmitter {
       
       this.emit('play', filePath);
       
+      // Start currentTime event interval
+      if (this._currentTimeInterval) clearInterval(this._currentTimeInterval);
+      this._currentTimeInterval = setInterval(() => {
+        if (this._isPlaying && !this._paused) {
+          this.emit('currentTime', this.getCurrentTime());
+        }
+      }, 250);
+      
       // Monitor for track end
       const checkEnd = () => {
         if (ffmpegEnded && pcmQueue.length === 0) {
           this._isPlaying = false;
+          if (this._currentTimeInterval) {
+            clearInterval(this._currentTimeInterval);
+            this._currentTimeInterval = null;
+          }
           this.emit('trackEnd', filePath);
           
           // Handle playlist continuation
@@ -312,7 +352,10 @@ export class AudioPlayer extends EventEmitter {
       if (this._audioStream && typeof this._audioStream.pause === 'function') {
         this._audioStream.pause();
       }
-      
+      if (this._currentTimeInterval) {
+        clearInterval(this._currentTimeInterval);
+        this._currentTimeInterval = null;
+      }
       this.emit('pause', this._currentTrack);
     } catch (error) {
       this.emit('error', error);
@@ -366,6 +409,11 @@ export class AudioPlayer extends EventEmitter {
       this._audioBuffer = [];
       this._audioBufferSize = 0;
       this._ffmpegEnded = false;
+      this._framesPlayed = 0;
+      if (this._currentTimeInterval) {
+        clearInterval(this._currentTimeInterval);
+        this._currentTimeInterval = null;
+      }
       
       // Terminate ffmpeg process
       if (this._ffmpegProcess) {
@@ -477,12 +525,27 @@ export class AudioPlayer extends EventEmitter {
       if (!this._ffmpegPath) {
         this._ffmpegPath = await locateFFmpeg();
       }
-      
-      return await extractMetadata(this._currentTrack, this._ffmpegPath);
+      const metadata = await extractMetadata(this._currentTrack, this._ffmpegPath);
+      if (metadata && typeof metadata.duration === 'number') {
+        this._currentDuration = metadata.duration;
+        this.emit('duration', this._currentDuration);
+      } else if (this._currentDuration != null) {
+        metadata.duration = this._currentDuration;
+      }
+      return metadata;
     } catch (error) {
       handleError(error, 'getMetadata', this);
       throw error;
     }
+  }
+
+  /**
+   * Get current track duration in seconds.
+   * @returns {number|null} Duration in seconds, or null if unknown
+   * @author zevinDev
+   */
+  getDuration() {
+    return this._currentDuration;
   }
 
   /**
@@ -925,5 +988,15 @@ export class AudioPlayer extends EventEmitter {
     const streamId = await portaudio.openStreamAsync(streamOpts, audioCallback);
     await new Promise(resolve => setTimeout(resolve, durationSec * 1000 + 200));
     portaudio.closeStream(streamId);
+  }
+
+  /**
+   * Get current playback time in seconds.
+   * @returns {number} Elapsed playback time in seconds
+   * @author zevinDev
+   */
+  getCurrentTime() {
+    if (!this._isPlaying) return 0;
+    return this._framesPlayed / this._currentSampleRate;
   }
 }
