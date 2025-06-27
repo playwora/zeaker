@@ -18,10 +18,12 @@ const __dirname = path.dirname(__filename);
 
 /**
  * Locate the ffmpeg binary for the current platform.
- * 
- * @returns {Promise<string>} Path to ffmpeg binary
- * @throws {Error} If ffmpeg binary is not found
+ *
+ * @returns {Promise<string>} Resolves with the path to the ffmpeg binary.
+ * @throws {Error} If ffmpeg binary is not found.
  * @author zevinDev
+ * @example
+ * const ffmpegPath = await locateFFmpeg();
  */
 export async function locateFFmpeg() {
     if (ffmpegPath) {
@@ -33,10 +35,12 @@ export async function locateFFmpeg() {
 
 /**
  * Locate the ffprobe binary for the current platform.
- * 
- * @returns {Promise<string>} Path to ffprobe binary
- * @throws {Error} If ffprobe binary is not found
+ *
+ * @returns {Promise<string>} Resolves with the path to the ffprobe binary.
+ * @throws {Error} If ffprobe binary is not found.
  * @author zevinDev
+ * @example
+ * const ffprobePath = await locateFFprobe();
  */
 export async function locateFFprobe() {
     if (ffprobePath) {
@@ -47,18 +51,21 @@ export async function locateFFprobe() {
 }
 
 /**
- * Build FFmpeg arguments for audio conversion.
- * 
- * @param {object} options - Conversion options
- * @param {string} options.input - Input file path or 'pipe:0' for stdin
- * @param {string} options.output - Output destination or 'pipe:1' for stdout
- * @param {number} [options.sampleRate=44100] - Target sample rate
- * @param {number} [options.channels=2] - Target number of channels
- * @param {string} [options.format='f32le'] - Output format
- * @param {string} [options.codec='pcm_f32le'] - Audio codec
- * @param {number} [options.seekPosition] - Seek position in seconds
- * @returns {string[]} FFmpeg arguments array
+ * Build FFmpeg arguments for audio conversion/decoding.
+ *
+ * @param {object} options - Conversion options.
+ * @param {string} options.input - Input file path or 'pipe:0' for stdin.
+ * @param {string} [options.output='pipe:1'] - Output destination or 'pipe:1' for stdout.
+ * @param {number} [options.sampleRate=44100] - Target sample rate.
+ * @param {number} [options.channels=2] - Target number of channels.
+ * @param {string} [options.format='f32le'] - Output format.
+ * @param {string} [options.codec='pcm_f32le'] - Audio codec.
+ * @param {number} [options.seekPosition] - Seek position in seconds.
+ * @param {string[]} [options.extra] - Extra ffmpeg arguments.
+ * @returns {string[]} FFmpeg arguments array.
  * @author zevinDev
+ * @example
+ * const args = buildFFmpegArgs({ input: 'track.flac', sampleRate: 48000 });
  */
 export function buildFFmpegArgs({
   input,
@@ -93,12 +100,14 @@ export function buildFFmpegArgs({
 
 /**
  * Extract metadata from an audio file using ffmpeg.
- * 
- * @param {string} filePath - Path to the audio file
- * @param {string} [ffmpegPath] - Path to ffmpeg binary (auto-detected if not provided)
- * @returns {Promise<Object>} Metadata object (title, artist, album, duration, etc.)
- * @throws {Error} If extraction fails
+ *
+ * @param {string} filePath - Path to the audio file.
+ * @param {string} [ffmpegPath] - Path to ffmpeg binary (auto-detected if not provided).
+ * @returns {Promise<Object>} Resolves with metadata object (title, artist, album, duration, etc.).
+ * @throws {Error} If extraction fails.
  * @author zevinDev
+ * @example
+ * const meta = await extractMetadata('track.flac');
  */
 export async function extractMetadata(filePath, ffmpegPath) {
   if (!ffmpegPath) {
@@ -145,12 +154,14 @@ export async function extractMetadata(filePath, ffmpegPath) {
 
 /**
  * Get detailed audio stream information from a file.
- * 
- * @param {string} filePath - Path to the audio file
- * @param {string} [ffprobePath] - Path to ffprobe binary (auto-detected if not provided)
- * @returns {Promise<Object>} Audio stream info (sample_rate, channels, etc.)
- * @throws {Error} If analysis fails
+ *
+ * @param {string} filePath - Path to the audio file.
+ * @param {string} [ffprobePath] - Path to ffprobe binary (auto-detected if not provided).
+ * @returns {Promise<Object>} Resolves with audio stream info (sampleRate, channels, bitDepth, duration).
+ * @throws {Error} If analysis fails.
  * @author zevinDev
+ * @example
+ * const info = await getAudioInfo('track.flac');
  */
 export async function getAudioInfo(filePath, ffprobePath) {
   if (!ffprobePath) {
@@ -164,6 +175,7 @@ export async function getAudioInfo(filePath, ffprobePath) {
     console.warn('[FFmpegUtils] Failed to get audio info, using defaults:', error.message);
     return {
       sample_rate: 44100,
+      bit_depth: 16,
       channels: 2,
       duration: null
     };
@@ -172,12 +184,14 @@ export async function getAudioInfo(filePath, ffprobePath) {
 
 /**
  * Create and configure an FFmpeg process for audio conversion.
- * 
- * @param {string} ffmpegPath - Path to ffmpeg binary
- * @param {string[]} args - FFmpeg arguments
- * @param {object} [options] - Spawn options
- * @returns {ChildProcess} Configured FFmpeg process
+ *
+ * @param {string} ffmpegPath - Path to ffmpeg binary.
+ * @param {string[]} args - FFmpeg arguments.
+ * @param {object} [options] - Spawn options.
+ * @returns {ChildProcess} Configured FFmpeg process.
  * @author zevinDev
+ * @example
+ * const proc = createFFmpegProcess(ffmpegPath, args);
  */
 export function createFFmpegProcess(ffmpegPath, args, options = {}) {
   const defaultOptions = {
@@ -189,10 +203,13 @@ export function createFFmpegProcess(ffmpegPath, args, options = {}) {
 
 /**
  * Kill an FFmpeg process safely.
- * 
- * @param {ChildProcess} process - FFmpeg process to kill
- * @param {string} [signal='SIGKILL'] - Signal to send
+ *
+ * @param {ChildProcess} process - FFmpeg process to kill.
+ * @param {string} [signal='SIGKILL'] - Signal to send.
+ * @returns {void}
  * @author zevinDev
+ * @example
+ * killFFmpegProcess(proc);
  */
 export function killFFmpegProcess(process, signal = 'SIGKILL') {
   if (process && typeof process.kill === 'function') {

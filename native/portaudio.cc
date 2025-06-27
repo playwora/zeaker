@@ -532,6 +532,99 @@ Napi::Value SetStreamVolume(const Napi::CallbackInfo &info)
   return env.Undefined();
 }
 
+// Enumerate device capabilities (sample rates, channels, host API info)
+Napi::Value GetDeviceCapabilities(const Napi::CallbackInfo &info)
+{
+  Napi::Env env = info.Env();
+  int deviceIndex = Pa_GetDefaultOutputDevice();
+  if (info.Length() > 0 && info[0].IsNumber())
+  {
+    deviceIndex = info[0].As<Napi::Number>().Int32Value();
+  }
+  const PaDeviceInfo *devInfo = Pa_GetDeviceInfo(deviceIndex);
+  if (!devInfo)
+  {
+    Napi::Error::New(env, "Invalid device index").ThrowAsJavaScriptException();
+    return env.Null();
+  }
+  const PaHostApiInfo *hostApiInfo = Pa_GetHostApiInfo(devInfo->hostApi);
+  // Common sample rates to probe
+  std::vector<double> rates = {8000, 11025, 16000, 22050, 32000, 44100, 48000, 88200, 96000, 176400, 192000};
+  Napi::Array supportedRates = Napi::Array::New(env);
+  int supportedCount = 0;
+  for (size_t i = 0; i < rates.size(); ++i)
+  {
+    PaStreamParameters outputParams;
+    outputParams.device = deviceIndex;
+    outputParams.channelCount = devInfo->maxOutputChannels;
+    outputParams.sampleFormat = paFloat32;
+    outputParams.suggestedLatency = devInfo->defaultLowOutputLatency;
+    outputParams.hostApiSpecificStreamInfo = nullptr;
+    PaError err = Pa_IsFormatSupported(nullptr, &outputParams, rates[i]);
+    if (err == paNoError)
+    {
+      supportedRates.Set(supportedCount++, Napi::Number::New(env, rates[i]));
+    }
+  }
+  // Supported channel counts (1 to maxOutputChannels)
+  Napi::Array supportedChannels = Napi::Array::New(env);
+  int chCount = 0;
+  for (int ch = 1; ch <= devInfo->maxOutputChannels; ++ch)
+  {
+    PaStreamParameters outputParams;
+    outputParams.device = deviceIndex;
+    outputParams.channelCount = ch;
+    outputParams.sampleFormat = paFloat32;
+    outputParams.suggestedLatency = devInfo->defaultLowOutputLatency;
+    outputParams.hostApiSpecificStreamInfo = nullptr;
+    PaError err = Pa_IsFormatSupported(nullptr, &outputParams, devInfo->defaultSampleRate);
+    if (err == paNoError)
+    {
+      supportedChannels.Set(chCount++, Napi::Number::New(env, ch));
+    }
+  }
+  // Supported bit depths (sample formats)
+  struct BitDepthFormat
+  {
+    PaSampleFormat format;
+    int bitDepth;
+  };
+  std::vector<BitDepthFormat> bitDepths = {
+      {paInt16, 16},
+      {paInt24, 24},
+      {paInt32, 32},
+      {paFloat32, 32}};
+  Napi::Array supportedBitDepths = Napi::Array::New(env);
+  int bitDepthCount = 0;
+  for (const auto &bdf : bitDepths)
+  {
+    PaStreamParameters outputParams;
+    outputParams.device = deviceIndex;
+    outputParams.channelCount = devInfo->maxOutputChannels;
+    outputParams.sampleFormat = bdf.format;
+    outputParams.suggestedLatency = devInfo->defaultLowOutputLatency;
+    outputParams.hostApiSpecificStreamInfo = nullptr;
+    PaError err = Pa_IsFormatSupported(nullptr, &outputParams, devInfo->defaultSampleRate);
+    if (err == paNoError)
+    {
+      supportedBitDepths.Set(bitDepthCount++, Napi::Number::New(env, bdf.bitDepth));
+    }
+  }
+  Napi::Object result = Napi::Object::New(env);
+  result.Set("index", deviceIndex);
+  result.Set("name", devInfo->name ? devInfo->name : "");
+  result.Set("maxInputChannels", devInfo->maxInputChannels);
+  result.Set("maxOutputChannels", devInfo->maxOutputChannels);
+  result.Set("defaultSampleRate", devInfo->defaultSampleRate);
+  result.Set("supportedSampleRates", supportedRates);
+  result.Set("supportedChannels", supportedChannels);
+  result.Set("supportedBitDepths", supportedBitDepths);
+  result.Set("hostApi", devInfo->hostApi);
+  result.Set("hostApiName", hostApiInfo ? hostApiInfo->name : "");
+  result.Set("isDefaultOutput", deviceIndex == Pa_GetDefaultOutputDevice());
+  return result;
+}
+
 Napi::Object InitAll(Napi::Env env, Napi::Object exports)
 {
   exports.Set(Napi::String::New(env, "init"), Napi::Function::New(env, Init));
@@ -546,6 +639,7 @@ Napi::Object InitAll(Napi::Env env, Napi::Object exports)
   exports.Set(Napi::String::New(env, "setStreamEventCallback"), Napi::Function::New(env, SetStreamEventCallback));
   exports.Set(Napi::String::New(env, "setStreamVolume"), Napi::Function::New(env, SetStreamVolume));
   exports.Set(Napi::String::New(env, "isOutputFormatSupported"), Napi::Function::New(env, IsOutputFormatSupported));
+  exports.Set(Napi::String::New(env, "getDeviceCapabilities"), Napi::Function::New(env, GetDeviceCapabilities));
   return exports;
 }
 

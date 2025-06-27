@@ -5,112 +5,156 @@
  */
 
 /**
- * Negotiate the optimal output format between track and device capabilities, using PortAudio's format support check.
+ * Negotiate the optimal output format between track and device capabilities.
+ * Prefers exact match, then highest supported <= track, else lowest available.
  *
- * @param {object} trackInfo - Track information
- * @param {number} trackInfo.sampleRate - Track sample rate
- * @param {number} trackInfo.channels - Track channel count
- * @param {object} deviceInfo - Device information
- * @param {number} deviceInfo.defaultSampleRate - Device default sample rate
- * @param {number} deviceInfo.maxOutputChannels - Device max output channels
- * @param {object} [portaudio] - PortAudio binding instance (must provide isOutputFormatSupported)
- * @returns {object} Negotiated format and required conversions
+ * @param {object} trackInfo - Track info ({ sampleRate, channels, bitDepth }).
+ * @param {object} deviceInfo - Device info ({ index }).
+ * @param {object} portaudio - PortAudio binding instance.
+ * @returns {object} Negotiated format and required conversions.
+ * @throws {Error} If portaudio.getDeviceCapabilities is not available.
  * @author zevinDev
  * @example
- * // Returns { sampleRate, channels, needsResampling, needsRemixing, originalSampleRate, originalChannels, supported }
- * negotiateAudioFormat({ sampleRate: 44100, channels: 2 }, device, portaudio)
+ * const fmt = negotiateAudioFormat(track, device, portaudio);
  */
 export function negotiateAudioFormat(trackInfo, deviceInfo, portaudio) {
-  const { sampleRate: trackSampleRate, channels: trackChannels } = trackInfo;
-  const { defaultSampleRate: deviceSampleRate, maxOutputChannels: deviceChannels } = deviceInfo;
+  const { sampleRate: trackSampleRate, channels: trackChannels, bitDepth: trackBitDepth } = trackInfo;
+  
+  // Validate inputs
+  if (!portaudio || typeof portaudio.getDeviceCapabilities !== 'function') {
+    throw new Error('portaudio.getDeviceCapabilities is required');
+  }
+  
+  const deviceCapabilities = portaudio.getDeviceCapabilities(deviceInfo.index);
+  const supportedRates = Array.isArray(deviceCapabilities.supportedSampleRates)
+    ? [...new Set(deviceCapabilities.supportedSampleRates.map(Number))].sort((a, b) => a - b)
+    : [deviceCapabilities.defaultSampleRate];
+  const supportedChannels = Array.isArray(deviceCapabilities.supportedChannels)
+    ? [...new Set(deviceCapabilities.supportedChannels.map(Number))].sort((a, b) => a - b)
+    : [deviceCapabilities.maxOutputChannels];
+  const supportedBitDepths = Array.isArray(deviceCapabilities.supportedBitDepths)
+    ? [...new Set(deviceCapabilities.supportedBitDepths.map(Number))].sort((a, b) => a - b)
+    : [32];
 
-  let outputSampleRate = trackSampleRate;
-  let outputChannels = trackChannels;
-  let needsResampling = false;
-  let needsRemixing = false;
-  let supported = false;
-
-  // Prefer track format, but check device limits
-  if (outputChannels > deviceChannels) {
-    needsRemixing = true;
-    outputChannels = deviceChannels;
+  // Helper: find best match with conservative defaults
+  function pickBest(supported, trackValue, conservativeDefault) {
+    // If trackValue is invalid, use conservative default
+    if (typeof trackValue !== 'number' || trackValue <= 0) {
+      return conservativeDefault && supported.includes(conservativeDefault) 
+        ? conservativeDefault 
+        : supported[0]; // Use lowest if no conservative default
+    }
+    
+    // Exact match is always preferred
+    if (supported.includes(trackValue)) return trackValue;
+    
+    // Find highest supported value <= track value (avoid unnecessary upsampling)
+    const lessOrEqual = supported.filter(v => v <= trackValue);
+    if (lessOrEqual.length > 0) return lessOrEqual[lessOrEqual.length - 1];
+    
+    // If track value is lower than all supported, use lowest supported
+    return supported[0];
   }
 
-  // Try device default if track format not supported
-  if (portaudio && typeof portaudio.isOutputFormatSupported === 'function') {
-    supported = portaudio.isOutputFormatSupported({
-      sampleRate: outputSampleRate,
-      channels: outputChannels,
-      deviceIndex: deviceInfo.index,
-      sampleFormat: 'f32le',
-    });
-    if (!supported) {
-      // Try device default sample rate and max channels
-      outputSampleRate = deviceSampleRate;
-      outputChannels = deviceChannels;
-      needsResampling = trackSampleRate !== outputSampleRate;
-      needsRemixing = trackChannels !== outputChannels;
+  const outputSampleRate = pickBest(supportedRates, trackSampleRate, 44100);
+  const outputChannels = pickBest(supportedChannels, trackChannels, 2);
+  const outputBitDepth = pickBest(supportedBitDepths, trackBitDepth, 16);
+
+  const needsResampling = outputSampleRate !== trackSampleRate;
+  const needsRemixing = outputChannels !== trackChannels;
+  const needsBitDepthConversion = outputBitDepth !== trackBitDepth && typeof trackBitDepth === 'number';
+
+  // Map bit depth to PortAudio sampleFormat string
+  const bitDepthToSampleFormat = {
+    16: 's16le',
+    24: 's24le',
+    32: 'f32le',
+  };
+  const sampleFormat = bitDepthToSampleFormat[outputBitDepth] || 'f32le';
+
+  // Check if format is supported
+  let supported = false;
+  if (typeof portaudio.isOutputFormatSupported === 'function') {
+    try {
       supported = portaudio.isOutputFormatSupported({
+        deviceIndex: deviceInfo.index,
         sampleRate: outputSampleRate,
         channels: outputChannels,
-        deviceIndex: deviceInfo.index,
-        sampleFormat: 'f32le',
+        sampleFormat
       });
+    } catch (e) {
+      // fallback: try legacy signature
+      try {
+        supported = portaudio.isOutputFormatSupported(
+          deviceInfo.index,
+          outputSampleRate,
+          outputChannels
+        );
+      } catch {
+        supported = false;
+      }
     }
   } else {
-    // Fallback: check if resampling/remixing needed
-    if (outputSampleRate !== deviceSampleRate) {
-      needsResampling = true;
-      outputSampleRate = deviceSampleRate;
-    }
-    if (outputChannels > deviceChannels) {
-      needsRemixing = true;
-      outputChannels = deviceChannels;
-    }
-    supported = true; // Assume supported if not checkable
+    supported = true;
   }
 
   return {
     sampleRate: outputSampleRate,
     channels: outputChannels,
+    bitDepth: outputBitDepth,
     needsResampling,
     needsRemixing,
+    needsBitDepthConversion,
     originalSampleRate: trackSampleRate,
     originalChannels: trackChannels,
+    originalBitDepth: trackBitDepth,
     supported
   };
 }
 
 /**
  * Scale PCM float32le buffer by volume (software gain).
- * 
- * @param {Buffer} buffer - PCM buffer (float32le format)
- * @param {number} volume - Volume multiplier (0.0-1.0)
- * @returns {Buffer} Scaled PCM buffer
+ *
+ * @param {Buffer|Float32Array} buffer - PCM buffer (float32le format).
+ * @param {number} volume - Volume multiplier (0.0-1.0).
+ * @returns {Float32Array} Scaled PCM buffer as Float32Array.
+ * @throws {TypeError} If buffer is not Buffer or Float32Array.
  * @author zevinDev
+ * @example
+ * const scaled = scalePCMVolume(buf, 0.5);
  */
 export function scalePCMVolume(buffer, volume) {
-  if (volume === 1.0) return buffer; // No scaling needed
-  
-  const floatArray = new Float32Array(buffer.buffer, buffer.byteOffset, buffer.length / 4);
-  for (let i = 0; i < floatArray.length; i++) {
-    floatArray[i] *= volume;
+  if (volume === 1.0) return buffer;
+  // Accept both Buffer and Float32Array
+  let floatArray;
+  if (buffer instanceof Float32Array) {
+    floatArray = buffer;
+  } else if (Buffer.isBuffer(buffer)) {
+    floatArray = new Float32Array(buffer.buffer, buffer.byteOffset, buffer.length / 4);
+  } else {
+    throw new TypeError('scalePCMVolume expects Buffer or Float32Array');
   }
-  
-  return Buffer.from(floatArray.buffer, floatArray.byteOffset, floatArray.byteLength);
+  // Create a new Float32Array to avoid mutating the input
+  const scaled = new Float32Array(floatArray.length);
+  for (let i = 0; i < floatArray.length; i++) {
+    scaled[i] = floatArray[i] * volume;
+  }
+  return scaled;
 }
 
 /**
  * Mix two PCM buffer arrays for crossfade effects.
  * Supports multiple crossfade curves: linear, logarithmic, exponential.
- * 
- * @param {Buffer[]} currentBuffers - PCM buffers from current track
- * @param {Buffer[]} nextBuffers - PCM buffers from next track
- * @param {number} crossfadeFrames - Number of frames to crossfade
- * @param {number} channels - Number of audio channels
- * @param {string} [curve='linear'] - Crossfade curve type
- * @returns {Buffer[]} Mixed PCM buffers
+ *
+ * @param {Buffer[]} currentBuffers - PCM buffers from current track.
+ * @param {Buffer[]} nextBuffers - PCM buffers from next track.
+ * @param {number} crossfadeFrames - Number of frames to crossfade.
+ * @param {number} channels - Number of audio channels.
+ * @param {string} [curve='linear'] - Crossfade curve type.
+ * @returns {Buffer[]} Mixed PCM buffers.
  * @author zevinDev
+ * @example
+ * const mixed = mixCrossfade(curBufs, nextBufs, 1024, 2, 'logarithmic');
  */
 export function mixCrossfade(currentBuffers, nextBuffers, crossfadeFrames, channels, curve = 'linear') {
   // Flatten buffers
@@ -161,10 +205,12 @@ export function mixCrossfade(currentBuffers, nextBuffers, crossfadeFrames, chann
 
 /**
  * Fisher-Yates shuffle algorithm for arrays.
- * 
- * @param {Array} arr - Array to shuffle
- * @returns {Array} Shuffled array (new copy)
+ *
+ * @param {Array} arr - Array to shuffle.
+ * @returns {Array} Shuffled array (new copy).
  * @author zevinDev
+ * @example
+ * const shuffled = shuffleArray([1,2,3]);
  */
 export function shuffleArray(arr) {
   const shuffled = [...arr];
@@ -177,11 +223,13 @@ export function shuffleArray(arr) {
 
 /**
  * Validate crossfade curve parameter.
- * 
- * @param {string} curve - Curve name to validate
- * @returns {string} Normalized curve name
- * @throws {Error} If curve is invalid
+ *
+ * @param {string} curve - Curve name to validate.
+ * @returns {string} Normalized curve name.
+ * @throws {Error} If curve is invalid.
  * @author zevinDev
+ * @example
+ * const c = validateCrossfadeCurve('log');
  */
 export function validateCrossfadeCurve(curve) {
   const valid = ['linear', 'log', 'logarithmic', 'exp', 'exponential'];
@@ -198,11 +246,13 @@ export function validateCrossfadeCurve(curve) {
 
 /**
  * Calculate the number of frames for a given duration and sample rate.
- * 
- * @param {number} durationSeconds - Duration in seconds
- * @param {number} sampleRate - Sample rate in Hz
- * @returns {number} Number of frames
+ *
+ * @param {number} durationSeconds - Duration in seconds.
+ * @param {number} sampleRate - Sample rate in Hz.
+ * @returns {number} Number of frames.
  * @author zevinDev
+ * @example
+ * const frames = durationToFrames(2.5, 44100);
  */
 export function durationToFrames(durationSeconds, sampleRate) {
   return Math.floor(durationSeconds * sampleRate);
@@ -210,11 +260,13 @@ export function durationToFrames(durationSeconds, sampleRate) {
 
 /**
  * Get frame size in bytes for given format.
- * 
- * @param {number} channels - Number of channels
- * @param {string} [format='f32le'] - Audio format
- * @returns {number} Frame size in bytes
+ *
+ * @param {number} channels - Number of channels.
+ * @param {string} [format='f32le'] - Audio format.
+ * @returns {number} Frame size in bytes.
  * @author zevinDev
+ * @example
+ * const size = getFrameSize(2, 'f32le');
  */
 export function getFrameSize(channels, format = 'f32le') {
   const bytesPerSample = format === 'f32le' ? 4 : 2; // Assume 16-bit for others

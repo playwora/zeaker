@@ -33,8 +33,8 @@
 ## Functions
 
 <dl>
-<dt><a href="#getAudioStreamInfo">getAudioStreamInfo(ffprobePath, filePath)</a> ⇒ <code>Promise.&lt;{sample_rate: number, channels: number, duration: number}&gt;</code></dt>
-<dd><p>Get audio stream info (sample rate, channels) from a file using ffprobe.</p>
+<dt><a href="#getAudioStreamInfo">getAudioStreamInfo(ffprobePath, filePath)</a> ⇒ <code>Promise.&lt;{sampleRate: number, channels: number, bitDepth: number, duration: number}&gt;</code></dt>
+<dd><p>Get audio stream info (sample rate, channels, bit depth, duration) from a file using ffprobe.</p>
 </dd>
 </dl>
 
@@ -271,18 +271,18 @@ Modular Node.js Lossless Audio Player (PortAudio + FFmpeg)
             * [.playPlaylist(playlist)](#module_AudioPlayer.AudioPlayer+playPlaylist) ⇒ <code>Promise.&lt;void&gt;</code>
             * [.skip()](#module_AudioPlayer.AudioPlayer+skip) ⇒ <code>Promise.&lt;void&gt;</code>
             * [.previous()](#module_AudioPlayer.AudioPlayer+previous) ⇒ <code>Promise.&lt;void&gt;</code>
-            * [.stopPlaylist()](#module_AudioPlayer.AudioPlayer+stopPlaylist)
-            * [.setPlaylistShuffle([enable])](#module_AudioPlayer.AudioPlayer+setPlaylistShuffle)
-            * [.setPlaylistRepeat(mode)](#module_AudioPlayer.AudioPlayer+setPlaylistRepeat)
+            * [.stopPlaylist()](#module_AudioPlayer.AudioPlayer+stopPlaylist) ⇒ <code>void</code>
+            * [.setPlaylistShuffle([enable])](#module_AudioPlayer.AudioPlayer+setPlaylistShuffle) ⇒ <code>void</code>
+            * [.setPlaylistRepeat(mode)](#module_AudioPlayer.AudioPlayer+setPlaylistRepeat) ⇒ <code>void</code>
             * [.playGapless(nextTrack)](#module_AudioPlayer.AudioPlayer+playGapless) ⇒ <code>Promise.&lt;void&gt;</code>
             * [.crossfadeTo(nextTrack, [duration])](#module_AudioPlayer.AudioPlayer+crossfadeTo) ⇒ <code>Promise.&lt;void&gt;</code>
             * [.playStream(url, [options])](#module_AudioPlayer.AudioPlayer+playStream) ⇒ <code>Promise.&lt;void&gt;</code>
             * [.setOutputDevice(deviceIndex)](#module_AudioPlayer.AudioPlayer+setOutputDevice) ⇒ <code>Promise.&lt;void&gt;</code>
             * [.setBitPerfect(options)](#module_AudioPlayer.AudioPlayer+setBitPerfect) ⇒ <code>Promise.&lt;void&gt;</code>
-            * [.onVisualization(callback)](#module_AudioPlayer.AudioPlayer+onVisualization)
-            * [.setBufferSize(frames)](#module_AudioPlayer.AudioPlayer+setBufferSize)
-            * [.setCrossfadeDuration(duration)](#module_AudioPlayer.AudioPlayer+setCrossfadeDuration)
-            * [.setCrossfadeCurve(curve)](#module_AudioPlayer.AudioPlayer+setCrossfadeCurve)
+            * [.onVisualization(callback)](#module_AudioPlayer.AudioPlayer+onVisualization) ⇒ <code>void</code>
+            * [.setBufferSize(frames)](#module_AudioPlayer.AudioPlayer+setBufferSize) ⇒ <code>void</code>
+            * [.setCrossfadeDuration(duration)](#module_AudioPlayer.AudioPlayer+setCrossfadeDuration) ⇒ <code>void</code>
+            * [.setCrossfadeCurve(curve)](#module_AudioPlayer.AudioPlayer+setCrossfadeCurve) ⇒ <code>void</code>
             * [.getStatus()](#module_AudioPlayer.AudioPlayer+getStatus) ⇒ <code>object</code>
             * [.getManagers()](#module_AudioPlayer.AudioPlayer+getManagers) ⇒ <code>object</code>
             * [.getCurrentTime()](#module_AudioPlayer.AudioPlayer+getCurrentTime) ⇒ <code>number</code>
@@ -309,18 +309,18 @@ Modular Node.js Lossless Audio Player (PortAudio + FFmpeg)
         * [.playPlaylist(playlist)](#module_AudioPlayer.AudioPlayer+playPlaylist) ⇒ <code>Promise.&lt;void&gt;</code>
         * [.skip()](#module_AudioPlayer.AudioPlayer+skip) ⇒ <code>Promise.&lt;void&gt;</code>
         * [.previous()](#module_AudioPlayer.AudioPlayer+previous) ⇒ <code>Promise.&lt;void&gt;</code>
-        * [.stopPlaylist()](#module_AudioPlayer.AudioPlayer+stopPlaylist)
-        * [.setPlaylistShuffle([enable])](#module_AudioPlayer.AudioPlayer+setPlaylistShuffle)
-        * [.setPlaylistRepeat(mode)](#module_AudioPlayer.AudioPlayer+setPlaylistRepeat)
+        * [.stopPlaylist()](#module_AudioPlayer.AudioPlayer+stopPlaylist) ⇒ <code>void</code>
+        * [.setPlaylistShuffle([enable])](#module_AudioPlayer.AudioPlayer+setPlaylistShuffle) ⇒ <code>void</code>
+        * [.setPlaylistRepeat(mode)](#module_AudioPlayer.AudioPlayer+setPlaylistRepeat) ⇒ <code>void</code>
         * [.playGapless(nextTrack)](#module_AudioPlayer.AudioPlayer+playGapless) ⇒ <code>Promise.&lt;void&gt;</code>
         * [.crossfadeTo(nextTrack, [duration])](#module_AudioPlayer.AudioPlayer+crossfadeTo) ⇒ <code>Promise.&lt;void&gt;</code>
         * [.playStream(url, [options])](#module_AudioPlayer.AudioPlayer+playStream) ⇒ <code>Promise.&lt;void&gt;</code>
         * [.setOutputDevice(deviceIndex)](#module_AudioPlayer.AudioPlayer+setOutputDevice) ⇒ <code>Promise.&lt;void&gt;</code>
         * [.setBitPerfect(options)](#module_AudioPlayer.AudioPlayer+setBitPerfect) ⇒ <code>Promise.&lt;void&gt;</code>
-        * [.onVisualization(callback)](#module_AudioPlayer.AudioPlayer+onVisualization)
-        * [.setBufferSize(frames)](#module_AudioPlayer.AudioPlayer+setBufferSize)
-        * [.setCrossfadeDuration(duration)](#module_AudioPlayer.AudioPlayer+setCrossfadeDuration)
-        * [.setCrossfadeCurve(curve)](#module_AudioPlayer.AudioPlayer+setCrossfadeCurve)
+        * [.onVisualization(callback)](#module_AudioPlayer.AudioPlayer+onVisualization) ⇒ <code>void</code>
+        * [.setBufferSize(frames)](#module_AudioPlayer.AudioPlayer+setBufferSize) ⇒ <code>void</code>
+        * [.setCrossfadeDuration(duration)](#module_AudioPlayer.AudioPlayer+setCrossfadeDuration) ⇒ <code>void</code>
+        * [.setCrossfadeCurve(curve)](#module_AudioPlayer.AudioPlayer+setCrossfadeCurve) ⇒ <code>void</code>
         * [.getStatus()](#module_AudioPlayer.AudioPlayer+getStatus) ⇒ <code>object</code>
         * [.getManagers()](#module_AudioPlayer.AudioPlayer+getManagers) ⇒ <code>object</code>
         * [.getCurrentTime()](#module_AudioPlayer.AudioPlayer+getCurrentTime) ⇒ <code>number</code>
@@ -331,29 +331,36 @@ Modular Node.js Lossless Audio Player (PortAudio + FFmpeg)
 <a name="module_AudioPlayer.AudioPlayer+play"></a>
 
 #### audioPlayer.play(filePath, [startPosition]) ⇒ <code>Promise.&lt;void&gt;</code>
-Play an audio file using ffmpeg for decoding and PortAudio for output.Uses async streaming with buffer management and error handling.
+Play an audio file using FFmpeg for decoding and PortAudio for output.Uses async streaming with buffer management and robust error handling.
 
 **Kind**: instance method of [<code>AudioPlayer</code>](#module_AudioPlayer.AudioPlayer)  
+**Returns**: <code>Promise.&lt;void&gt;</code> - Resolves when playback starts.  
 **Throws**:
 
-- <code>Error</code> If playback fails or ffmpeg/PortAudio is not available
+- <code>TypeError</code> If filePath is not a string or startPosition is invalid.
+- <code>Error</code> If playback fails or FFmpeg/PortAudio is not available.
 
 **Author**: zevinDev  
 
 | Param | Type | Default | Description |
 | --- | --- | --- | --- |
-| filePath | <code>string</code> |  | Path to the audio file |
-| [startPosition] | <code>number</code> | <code>0</code> | Position in seconds to start playback |
+| filePath | <code>string</code> |  | Path to the audio file to play. |
+| [startPosition] | <code>number</code> | <code>0</code> | Position in seconds to start playback from. |
 
+**Example**  
+```js
+await player.play('track.flac', 10); // Start at 10 seconds
+```
 <a name="module_AudioPlayer.AudioPlayer+pause"></a>
 
 #### audioPlayer.pause() ⇒ <code>Promise.&lt;void&gt;</code>
 Pause playback.
 
 **Kind**: instance method of [<code>AudioPlayer</code>](#module_AudioPlayer.AudioPlayer)  
+**Returns**: <code>Promise.&lt;void&gt;</code> - Resolves when playback is paused.  
 **Throws**:
 
-- <code>Error</code> If pause fails
+- <code>Error</code> If pause fails.
 
 **Emits**: <code>AudioPlayer#event:pause</code>  
 **Author**: zevinDev  
@@ -363,9 +370,10 @@ Pause playback.
 Resume playback.
 
 **Kind**: instance method of [<code>AudioPlayer</code>](#module_AudioPlayer.AudioPlayer)  
+**Returns**: <code>Promise.&lt;void&gt;</code> - Resolves when playback resumes.  
 **Throws**:
 
-- <code>Error</code> If resume fails
+- <code>Error</code> If resume fails.
 
 **Emits**: <code>AudioPlayer#event:resume</code>  
 **Author**: zevinDev  
@@ -375,9 +383,10 @@ Resume playback.
 Stop playback and clean up resources.
 
 **Kind**: instance method of [<code>AudioPlayer</code>](#module_AudioPlayer.AudioPlayer)  
+**Returns**: <code>Promise.&lt;void&gt;</code> - Resolves when playback is stopped.  
 **Throws**:
 
-- <code>Error</code> If stop fails
+- <code>Error</code> If stop fails.
 
 **Emits**: <code>AudioPlayer#event:stop</code>  
 **Author**: zevinDev  
@@ -387,16 +396,17 @@ Stop playback and clean up resources.
 Seek to a specific position in the current track.
 
 **Kind**: instance method of [<code>AudioPlayer</code>](#module_AudioPlayer.AudioPlayer)  
+**Returns**: <code>Promise.&lt;void&gt;</code> - Resolves when seek is complete.  
 **Throws**:
 
-- <code>Error</code> If seeking fails
+- <code>Error</code> If seeking fails or no track loaded.
 
 **Emits**: <code>AudioPlayer#event:seek</code>  
 **Author**: zevinDev  
 
 | Param | Type | Description |
 | --- | --- | --- |
-| positionSeconds | <code>number</code> | Position in seconds |
+| positionSeconds | <code>number</code> | Position in seconds to seek to. |
 
 <a name="module_AudioPlayer.AudioPlayer+setVolume"></a>
 
@@ -404,15 +414,16 @@ Seek to a specific position in the current track.
 Set playback volume.
 
 **Kind**: instance method of [<code>AudioPlayer</code>](#module_AudioPlayer.AudioPlayer)  
+**Returns**: <code>Promise.&lt;void&gt;</code> - Resolves when volume is set.  
 **Throws**:
 
-- <code>Error</code> If setting volume fails or in bit-perfect mode
+- <code>Error</code> If setting volume fails or in bit-perfect mode.
 
 **Author**: zevinDev  
 
 | Param | Type | Description |
 | --- | --- | --- |
-| level | <code>number</code> | Volume level between 0.0 and 1.0 |
+| level | <code>number</code> | Volume level between 0.0 and 1.0. |
 
 <a name="module_AudioPlayer.AudioPlayer+getVolume"></a>
 
@@ -420,7 +431,7 @@ Set playback volume.
 Get current volume level.
 
 **Kind**: instance method of [<code>AudioPlayer</code>](#module_AudioPlayer.AudioPlayer)  
-**Returns**: <code>number</code> - Current volume (0.0-1.0)  
+**Returns**: <code>number</code> - Current volume (0.0-1.0).  
 **Author**: zevinDev  
 <a name="module_AudioPlayer.AudioPlayer+getMetadata"></a>
 
@@ -428,10 +439,10 @@ Get current volume level.
 Extract metadata from the current track.
 
 **Kind**: instance method of [<code>AudioPlayer</code>](#module_AudioPlayer.AudioPlayer)  
-**Returns**: <code>Promise.&lt;Object&gt;</code> - Metadata object  
+**Returns**: <code>Promise.&lt;Object&gt;</code> - Metadata object for the current track.  
 **Throws**:
 
-- <code>Error</code> If extraction fails or no track loaded
+- <code>Error</code> If extraction fails or no track loaded.
 
 **Author**: zevinDev  
 <a name="module_AudioPlayer.AudioPlayer+getDuration"></a>
@@ -440,7 +451,7 @@ Extract metadata from the current track.
 Get current track duration in seconds.
 
 **Kind**: instance method of [<code>AudioPlayer</code>](#module_AudioPlayer.AudioPlayer)  
-**Returns**: <code>number</code> \| <code>null</code> - Duration in seconds, or null if unknown  
+**Returns**: <code>number</code> \| <code>null</code> - Duration in seconds, or null if unknown.  
 **Author**: zevinDev  
 <a name="module_AudioPlayer.AudioPlayer+playPlaylist"></a>
 
@@ -448,16 +459,17 @@ Get current track duration in seconds.
 Play a playlist of audio files sequentially.
 
 **Kind**: instance method of [<code>AudioPlayer</code>](#module_AudioPlayer.AudioPlayer)  
+**Returns**: <code>Promise.&lt;void&gt;</code> - Resolves when playlist starts.  
 **Throws**:
 
-- <code>Error</code> If playlist is invalid or playback fails
+- <code>Error</code> If playlist is invalid or playback fails.
 
 **Emits**: <code>AudioPlayer#event:playlistEnd</code>  
 **Author**: zevinDev  
 
 | Param | Type | Description |
 | --- | --- | --- |
-| playlist | <code>Array.&lt;string&gt;</code> | Array of file paths |
+| playlist | <code>Array.&lt;string&gt;</code> | Array of file paths to play. |
 
 <a name="module_AudioPlayer.AudioPlayer+skip"></a>
 
@@ -465,6 +477,7 @@ Play a playlist of audio files sequentially.
 Skip to the next track in the playlist.
 
 **Kind**: instance method of [<code>AudioPlayer</code>](#module_AudioPlayer.AudioPlayer)  
+**Returns**: <code>Promise.&lt;void&gt;</code> - Resolves when next track starts.  
 **Author**: zevinDev  
 <a name="module_AudioPlayer.AudioPlayer+previous"></a>
 
@@ -472,17 +485,18 @@ Skip to the next track in the playlist.
 Skip to the previous track in the playlist.
 
 **Kind**: instance method of [<code>AudioPlayer</code>](#module_AudioPlayer.AudioPlayer)  
+**Returns**: <code>Promise.&lt;void&gt;</code> - Resolves when previous track starts.  
 **Author**: zevinDev  
 <a name="module_AudioPlayer.AudioPlayer+stopPlaylist"></a>
 
-#### audioPlayer.stopPlaylist()
-Stop playlist playback.
+#### audioPlayer.stopPlaylist() ⇒ <code>void</code>
+Stop playlist playback and current track.
 
 **Kind**: instance method of [<code>AudioPlayer</code>](#module_AudioPlayer.AudioPlayer)  
 **Author**: zevinDev  
 <a name="module_AudioPlayer.AudioPlayer+setPlaylistShuffle"></a>
 
-#### audioPlayer.setPlaylistShuffle([enable])
+#### audioPlayer.setPlaylistShuffle([enable]) ⇒ <code>void</code>
 Enable or disable shuffle mode for playlists.
 
 **Kind**: instance method of [<code>AudioPlayer</code>](#module_AudioPlayer.AudioPlayer)  
@@ -490,23 +504,23 @@ Enable or disable shuffle mode for playlists.
 
 | Param | Type | Default | Description |
 | --- | --- | --- | --- |
-| [enable] | <code>boolean</code> | <code>true</code> | Enable shuffle if true |
+| [enable] | <code>boolean</code> | <code>true</code> | Enable shuffle if true. |
 
 <a name="module_AudioPlayer.AudioPlayer+setPlaylistRepeat"></a>
 
-#### audioPlayer.setPlaylistRepeat(mode)
+#### audioPlayer.setPlaylistRepeat(mode) ⇒ <code>void</code>
 Set repeat mode for playlists.
 
 **Kind**: instance method of [<code>AudioPlayer</code>](#module_AudioPlayer.AudioPlayer)  
 **Throws**:
 
-- <code>Error</code> If invalid repeat mode
+- <code>Error</code> If invalid repeat mode.
 
 **Author**: zevinDev  
 
 | Param | Type | Default | Description |
 | --- | --- | --- | --- |
-| mode | <code>&#x27;off&#x27;</code> \| <code>&#x27;one&#x27;</code> \| <code>&#x27;all&#x27;</code> | <code>off</code> | Repeat mode |
+| mode | <code>&#x27;off&#x27;</code> \| <code>&#x27;one&#x27;</code> \| <code>&#x27;all&#x27;</code> | <code>off</code> | Repeat mode. |
 
 <a name="module_AudioPlayer.AudioPlayer+playGapless"></a>
 
@@ -514,15 +528,16 @@ Set repeat mode for playlists.
 Enable gapless playback for the next track.
 
 **Kind**: instance method of [<code>AudioPlayer</code>](#module_AudioPlayer.AudioPlayer)  
+**Returns**: <code>Promise.&lt;void&gt;</code> - Resolves when gapless transition is set up.  
 **Throws**:
 
-- <code>Error</code> If bit-perfect mode is enabled
+- <code>Error</code> If bit-perfect mode is enabled or no active stream.
 
 **Author**: zevinDev  
 
 | Param | Type | Description |
 | --- | --- | --- |
-| nextTrack | <code>string</code> | Path to the next audio file |
+| nextTrack | <code>string</code> | Path to the next audio file. |
 
 <a name="module_AudioPlayer.AudioPlayer+crossfadeTo"></a>
 
@@ -530,33 +545,35 @@ Enable gapless playback for the next track.
 Crossfade between the current and next track.
 
 **Kind**: instance method of [<code>AudioPlayer</code>](#module_AudioPlayer.AudioPlayer)  
+**Returns**: <code>Promise.&lt;void&gt;</code> - Resolves when crossfade is complete.  
 **Throws**:
 
-- <code>Error</code> If bit-perfect mode is enabled
+- <code>Error</code> If bit-perfect mode is enabled or no active stream.
 
 **Author**: zevinDev  
 
 | Param | Type | Default | Description |
 | --- | --- | --- | --- |
-| nextTrack | <code>string</code> |  | Path to the next audio file |
-| [duration] | <code>number</code> | <code>3</code> | Crossfade duration in seconds |
+| nextTrack | <code>string</code> |  | Path to the next audio file. |
+| [duration] | <code>number</code> | <code>3</code> | Crossfade duration in seconds. |
 
 <a name="module_AudioPlayer.AudioPlayer+playStream"></a>
 
 #### audioPlayer.playStream(url, [options]) ⇒ <code>Promise.&lt;void&gt;</code>
-Play from a streaming source.
+Play from a streaming source (e.g., internet radio).
 
 **Kind**: instance method of [<code>AudioPlayer</code>](#module_AudioPlayer.AudioPlayer)  
+**Returns**: <code>Promise.&lt;void&gt;</code> - Resolves when streaming starts.  
 **Throws**:
 
-- <code>Error</code> If streaming fails
+- <code>Error</code> If streaming fails.
 
 **Author**: zevinDev  
 
 | Param | Type | Description |
 | --- | --- | --- |
-| url | <code>string</code> | Streaming source URL |
-| [options] | <code>object</code> | Streaming options |
+| url | <code>string</code> | Streaming source URL. |
+| [options] | <code>object</code> | Streaming options. |
 
 <a name="module_AudioPlayer.AudioPlayer+setOutputDevice"></a>
 
@@ -564,16 +581,17 @@ Play from a streaming source.
 Set the output device for playback.
 
 **Kind**: instance method of [<code>AudioPlayer</code>](#module_AudioPlayer.AudioPlayer)  
+**Returns**: <code>Promise.&lt;void&gt;</code> - Resolves when device is set.  
 **Throws**:
 
-- <code>Error</code> If device is not found or not output-capable
+- <code>Error</code> If device is not found or not output-capable.
 
 **Emits**: <code>AudioPlayer#event:deviceChange</code>  
 **Author**: zevinDev  
 
 | Param | Type | Description |
 | --- | --- | --- |
-| deviceIndex | <code>number</code> | Device index |
+| deviceIndex | <code>number</code> | Device index to use for output. |
 
 <a name="module_AudioPlayer.AudioPlayer+setBitPerfect"></a>
 
@@ -581,19 +599,20 @@ Set the output device for playback.
 Enable or disable bit-perfect output mode.
 
 **Kind**: instance method of [<code>AudioPlayer</code>](#module_AudioPlayer.AudioPlayer)  
+**Returns**: <code>Promise.&lt;void&gt;</code> - Resolves when bit-perfect mode is set.  
 **Throws**:
 
-- <code>Error</code> If currently playing and unable to restart
+- <code>Error</code> If currently playing and unable to restart.
 
 **Author**: zevinDev  
 
 | Param | Type | Default | Description |
 | --- | --- | --- | --- |
-| options | <code>boolean</code> \| <code>object</code> | <code>true</code> | Bit-perfect options |
+| options | <code>boolean</code> \| <code>object</code> | <code>true</code> | Bit-perfect options or true to enable. |
 
 <a name="module_AudioPlayer.AudioPlayer+onVisualization"></a>
 
-#### audioPlayer.onVisualization(callback)
+#### audioPlayer.onVisualization(callback) ⇒ <code>void</code>
 Attach a visualization callback for PCM data.
 
 **Kind**: instance method of [<code>AudioPlayer</code>](#module_AudioPlayer.AudioPlayer)  
@@ -601,11 +620,11 @@ Attach a visualization callback for PCM data.
 
 | Param | Type | Description |
 | --- | --- | --- |
-| callback | <code>function</code> | Function to receive PCM data |
+| callback | <code>function</code> | Function to receive PCM data. |
 
 <a name="module_AudioPlayer.AudioPlayer+setBufferSize"></a>
 
-#### audioPlayer.setBufferSize(frames)
+#### audioPlayer.setBufferSize(frames) ⇒ <code>void</code>
 Set buffer size/latency for playback.
 
 **Kind**: instance method of [<code>AudioPlayer</code>](#module_AudioPlayer.AudioPlayer)  
@@ -613,11 +632,11 @@ Set buffer size/latency for playback.
 
 | Param | Type | Description |
 | --- | --- | --- |
-| frames | <code>number</code> | Buffer size in frames |
+| frames | <code>number</code> | Buffer size in frames. |
 
 <a name="module_AudioPlayer.AudioPlayer+setCrossfadeDuration"></a>
 
-#### audioPlayer.setCrossfadeDuration(duration)
+#### audioPlayer.setCrossfadeDuration(duration) ⇒ <code>void</code>
 Set the crossfade duration.
 
 **Kind**: instance method of [<code>AudioPlayer</code>](#module_AudioPlayer.AudioPlayer)  
@@ -626,11 +645,11 @@ Set the crossfade duration.
 
 | Param | Type | Description |
 | --- | --- | --- |
-| duration | <code>number</code> | Duration in seconds |
+| duration | <code>number</code> | Duration in seconds. |
 
 <a name="module_AudioPlayer.AudioPlayer+setCrossfadeCurve"></a>
 
-#### audioPlayer.setCrossfadeCurve(curve)
+#### audioPlayer.setCrossfadeCurve(curve) ⇒ <code>void</code>
 Set the crossfade curve.
 
 **Kind**: instance method of [<code>AudioPlayer</code>](#module_AudioPlayer.AudioPlayer)  
@@ -639,7 +658,7 @@ Set the crossfade curve.
 
 | Param | Type | Description |
 | --- | --- | --- |
-| curve | <code>string</code> | Curve type |
+| curve | <code>string</code> | Curve type. |
 
 <a name="module_AudioPlayer.AudioPlayer+getStatus"></a>
 
@@ -647,7 +666,7 @@ Set the crossfade curve.
 Get current playback status.
 
 **Kind**: instance method of [<code>AudioPlayer</code>](#module_AudioPlayer.AudioPlayer)  
-**Returns**: <code>object</code> - Playback status  
+**Returns**: <code>object</code> - Playback status object with isPlaying, isPaused, currentTrack, etc.  
 **Author**: zevinDev  
 <a name="module_AudioPlayer.AudioPlayer+getManagers"></a>
 
@@ -655,7 +674,7 @@ Get current playback status.
 Get manager instances for advanced usage.
 
 **Kind**: instance method of [<code>AudioPlayer</code>](#module_AudioPlayer.AudioPlayer)  
-**Returns**: <code>object</code> - Manager instances  
+**Returns**: <code>object</code> - Object containing device, playlist, effects, and stream managers.  
 **Author**: zevinDev  
 <a name="module_AudioPlayer.AudioPlayer+getCurrentTime"></a>
 
@@ -663,7 +682,7 @@ Get manager instances for advanced usage.
 Get current playback time in seconds.
 
 **Kind**: instance method of [<code>AudioPlayer</code>](#module_AudioPlayer.AudioPlayer)  
-**Returns**: <code>number</code> - Elapsed playback time in seconds  
+**Returns**: <code>number</code> - Elapsed playback time in seconds.  
 **Author**: zevinDev  
 <a name="module_AudioPlayer.AudioPlayer.listOutputDevices"></a>
 
@@ -671,7 +690,7 @@ Get current playback time in seconds.
 List available PortAudio output devices.
 
 **Kind**: static method of [<code>AudioPlayer</code>](#module_AudioPlayer.AudioPlayer)  
-**Returns**: <code>Promise.&lt;Array&gt;</code> - Array of device objects  
+**Returns**: <code>Promise.&lt;Array&gt;</code> - Array of device objects.  
 **Author**: zevinDev  
 <a name="module_AudioPlayer.AudioPlayer.testSineWave"></a>
 
@@ -679,6 +698,7 @@ List available PortAudio output devices.
 Test PortAudio output with a synchronous 440Hz sine wave (2 seconds).Useful for debugging C++/Electron buffer issues.
 
 **Kind**: static method of [<code>AudioPlayer</code>](#module_AudioPlayer.AudioPlayer)  
+**Returns**: <code>Promise.&lt;void&gt;</code> - Resolves when test is complete.  
 **Author**: zevinDev  
 <a name="module_DeviceManager"></a>
 
@@ -1102,8 +1122,8 @@ Audio processing and format utilities
 **Author**: zevinDev  
 
 * [AudioUtils](#module_AudioUtils)
-    * [.negotiateAudioFormat(trackInfo, deviceInfo, [portaudio])](#module_AudioUtils.negotiateAudioFormat) ⇒ <code>object</code>
-    * [.scalePCMVolume(buffer, volume)](#module_AudioUtils.scalePCMVolume) ⇒ <code>Buffer</code>
+    * [.negotiateAudioFormat(trackInfo, deviceInfo, portaudio)](#module_AudioUtils.negotiateAudioFormat) ⇒ <code>object</code>
+    * [.scalePCMVolume(buffer, volume)](#module_AudioUtils.scalePCMVolume) ⇒ <code>Float32Array</code>
     * [.mixCrossfade(currentBuffers, nextBuffers, crossfadeFrames, channels, [curve])](#module_AudioUtils.mixCrossfade) ⇒ <code>Array.&lt;Buffer&gt;</code>
     * [.shuffleArray(arr)](#module_AudioUtils.shuffleArray) ⇒ <code>Array</code>
     * [.validateCrossfadeCurve(curve)](#module_AudioUtils.validateCrossfadeCurve) ⇒ <code>string</code>
@@ -1112,116 +1132,144 @@ Audio processing and format utilities
 
 <a name="module_AudioUtils.negotiateAudioFormat"></a>
 
-### AudioUtils.negotiateAudioFormat(trackInfo, deviceInfo, [portaudio]) ⇒ <code>object</code>
-Negotiate the optimal output format between track and device capabilities, using PortAudio's format support check.
+### AudioUtils.negotiateAudioFormat(trackInfo, deviceInfo, portaudio) ⇒ <code>object</code>
+Negotiate the optimal output format between track and device capabilities.Prefers exact match, then highest supported <= track, else lowest available.
 
 **Kind**: static method of [<code>AudioUtils</code>](#module_AudioUtils)  
-**Returns**: <code>object</code> - Negotiated format and required conversions  
+**Returns**: <code>object</code> - Negotiated format and required conversions.  
+**Throws**:
+
+- <code>Error</code> If portaudio.getDeviceCapabilities is not available.
+
 **Author**: zevinDev  
 
 | Param | Type | Description |
 | --- | --- | --- |
-| trackInfo | <code>object</code> | Track information |
-| trackInfo.sampleRate | <code>number</code> | Track sample rate |
-| trackInfo.channels | <code>number</code> | Track channel count |
-| deviceInfo | <code>object</code> | Device information |
-| deviceInfo.defaultSampleRate | <code>number</code> | Device default sample rate |
-| deviceInfo.maxOutputChannels | <code>number</code> | Device max output channels |
-| [portaudio] | <code>object</code> | PortAudio binding instance (must provide isOutputFormatSupported) |
+| trackInfo | <code>object</code> | Track info ({ sampleRate, channels, bitDepth }). |
+| deviceInfo | <code>object</code> | Device info ({ index }). |
+| portaudio | <code>object</code> | PortAudio binding instance. |
 
 **Example**  
 ```js
-// Returns { sampleRate, channels, needsResampling, needsRemixing, originalSampleRate, originalChannels, supported }negotiateAudioFormat({ sampleRate: 44100, channels: 2 }, device, portaudio)
+const fmt = negotiateAudioFormat(track, device, portaudio);
 ```
 <a name="module_AudioUtils.scalePCMVolume"></a>
 
-### AudioUtils.scalePCMVolume(buffer, volume) ⇒ <code>Buffer</code>
+### AudioUtils.scalePCMVolume(buffer, volume) ⇒ <code>Float32Array</code>
 Scale PCM float32le buffer by volume (software gain).
 
 **Kind**: static method of [<code>AudioUtils</code>](#module_AudioUtils)  
-**Returns**: <code>Buffer</code> - Scaled PCM buffer  
+**Returns**: <code>Float32Array</code> - Scaled PCM buffer as Float32Array.  
+**Throws**:
+
+- <code>TypeError</code> If buffer is not Buffer or Float32Array.
+
 **Author**: zevinDev  
 
 | Param | Type | Description |
 | --- | --- | --- |
-| buffer | <code>Buffer</code> | PCM buffer (float32le format) |
-| volume | <code>number</code> | Volume multiplier (0.0-1.0) |
+| buffer | <code>Buffer</code> \| <code>Float32Array</code> | PCM buffer (float32le format). |
+| volume | <code>number</code> | Volume multiplier (0.0-1.0). |
 
+**Example**  
+```js
+const scaled = scalePCMVolume(buf, 0.5);
+```
 <a name="module_AudioUtils.mixCrossfade"></a>
 
 ### AudioUtils.mixCrossfade(currentBuffers, nextBuffers, crossfadeFrames, channels, [curve]) ⇒ <code>Array.&lt;Buffer&gt;</code>
 Mix two PCM buffer arrays for crossfade effects.Supports multiple crossfade curves: linear, logarithmic, exponential.
 
 **Kind**: static method of [<code>AudioUtils</code>](#module_AudioUtils)  
-**Returns**: <code>Array.&lt;Buffer&gt;</code> - Mixed PCM buffers  
+**Returns**: <code>Array.&lt;Buffer&gt;</code> - Mixed PCM buffers.  
 **Author**: zevinDev  
 
 | Param | Type | Default | Description |
 | --- | --- | --- | --- |
-| currentBuffers | <code>Array.&lt;Buffer&gt;</code> |  | PCM buffers from current track |
-| nextBuffers | <code>Array.&lt;Buffer&gt;</code> |  | PCM buffers from next track |
-| crossfadeFrames | <code>number</code> |  | Number of frames to crossfade |
-| channels | <code>number</code> |  | Number of audio channels |
-| [curve] | <code>string</code> | <code>&quot;&#x27;linear&#x27;&quot;</code> | Crossfade curve type |
+| currentBuffers | <code>Array.&lt;Buffer&gt;</code> |  | PCM buffers from current track. |
+| nextBuffers | <code>Array.&lt;Buffer&gt;</code> |  | PCM buffers from next track. |
+| crossfadeFrames | <code>number</code> |  | Number of frames to crossfade. |
+| channels | <code>number</code> |  | Number of audio channels. |
+| [curve] | <code>string</code> | <code>&quot;&#x27;linear&#x27;&quot;</code> | Crossfade curve type. |
 
+**Example**  
+```js
+const mixed = mixCrossfade(curBufs, nextBufs, 1024, 2, 'logarithmic');
+```
 <a name="module_AudioUtils.shuffleArray"></a>
 
 ### AudioUtils.shuffleArray(arr) ⇒ <code>Array</code>
 Fisher-Yates shuffle algorithm for arrays.
 
 **Kind**: static method of [<code>AudioUtils</code>](#module_AudioUtils)  
-**Returns**: <code>Array</code> - Shuffled array (new copy)  
+**Returns**: <code>Array</code> - Shuffled array (new copy).  
 **Author**: zevinDev  
 
 | Param | Type | Description |
 | --- | --- | --- |
-| arr | <code>Array</code> | Array to shuffle |
+| arr | <code>Array</code> | Array to shuffle. |
 
+**Example**  
+```js
+const shuffled = shuffleArray([1,2,3]);
+```
 <a name="module_AudioUtils.validateCrossfadeCurve"></a>
 
 ### AudioUtils.validateCrossfadeCurve(curve) ⇒ <code>string</code>
 Validate crossfade curve parameter.
 
 **Kind**: static method of [<code>AudioUtils</code>](#module_AudioUtils)  
-**Returns**: <code>string</code> - Normalized curve name  
+**Returns**: <code>string</code> - Normalized curve name.  
 **Throws**:
 
-- <code>Error</code> If curve is invalid
+- <code>Error</code> If curve is invalid.
 
 **Author**: zevinDev  
 
 | Param | Type | Description |
 | --- | --- | --- |
-| curve | <code>string</code> | Curve name to validate |
+| curve | <code>string</code> | Curve name to validate. |
 
+**Example**  
+```js
+const c = validateCrossfadeCurve('log');
+```
 <a name="module_AudioUtils.durationToFrames"></a>
 
 ### AudioUtils.durationToFrames(durationSeconds, sampleRate) ⇒ <code>number</code>
 Calculate the number of frames for a given duration and sample rate.
 
 **Kind**: static method of [<code>AudioUtils</code>](#module_AudioUtils)  
-**Returns**: <code>number</code> - Number of frames  
+**Returns**: <code>number</code> - Number of frames.  
 **Author**: zevinDev  
 
 | Param | Type | Description |
 | --- | --- | --- |
-| durationSeconds | <code>number</code> | Duration in seconds |
-| sampleRate | <code>number</code> | Sample rate in Hz |
+| durationSeconds | <code>number</code> | Duration in seconds. |
+| sampleRate | <code>number</code> | Sample rate in Hz. |
 
+**Example**  
+```js
+const frames = durationToFrames(2.5, 44100);
+```
 <a name="module_AudioUtils.getFrameSize"></a>
 
 ### AudioUtils.getFrameSize(channels, [format]) ⇒ <code>number</code>
 Get frame size in bytes for given format.
 
 **Kind**: static method of [<code>AudioUtils</code>](#module_AudioUtils)  
-**Returns**: <code>number</code> - Frame size in bytes  
+**Returns**: <code>number</code> - Frame size in bytes.  
 **Author**: zevinDev  
 
 | Param | Type | Default | Description |
 | --- | --- | --- | --- |
-| channels | <code>number</code> |  | Number of channels |
-| [format] | <code>string</code> | <code>&quot;&#x27;f32le&#x27;&quot;</code> | Audio format |
+| channels | <code>number</code> |  | Number of channels. |
+| [format] | <code>string</code> | <code>&quot;&#x27;f32le&#x27;&quot;</code> | Audio format. |
 
+**Example**  
+```js
+const size = getFrameSize(2, 'f32le');
+```
 <a name="module_ErrorHandler"></a>
 
 ## ErrorHandler
@@ -1300,7 +1348,7 @@ FFmpeg-related utilities for audio processing
     * [.extractMetadata(filePath, [ffmpegPath])](#module_FFmpegUtils.extractMetadata) ⇒ <code>Promise.&lt;Object&gt;</code>
     * [.getAudioInfo(filePath, [ffprobePath])](#module_FFmpegUtils.getAudioInfo) ⇒ <code>Promise.&lt;Object&gt;</code>
     * [.createFFmpegProcess(ffmpegPath, args, [options])](#module_FFmpegUtils.createFFmpegProcess) ⇒ <code>ChildProcess</code>
-    * [.killFFmpegProcess(process, [signal])](#module_FFmpegUtils.killFFmpegProcess)
+    * [.killFFmpegProcess(process, [signal])](#module_FFmpegUtils.killFFmpegProcess) ⇒ <code>void</code>
 
 <a name="module_FFmpegUtils.locateFFmpeg"></a>
 
@@ -1308,98 +1356,123 @@ FFmpeg-related utilities for audio processing
 Locate the ffmpeg binary for the current platform.
 
 **Kind**: static method of [<code>FFmpegUtils</code>](#module_FFmpegUtils)  
-**Returns**: <code>Promise.&lt;string&gt;</code> - Path to ffmpeg binary  
+**Returns**: <code>Promise.&lt;string&gt;</code> - Resolves with the path to the ffmpeg binary.  
 **Throws**:
 
-- <code>Error</code> If ffmpeg binary is not found
+- <code>Error</code> If ffmpeg binary is not found.
 
 **Author**: zevinDev  
+**Example**  
+```js
+const ffmpegPath = await locateFFmpeg();
+```
 <a name="module_FFmpegUtils.locateFFprobe"></a>
 
 ### FFmpegUtils.locateFFprobe() ⇒ <code>Promise.&lt;string&gt;</code>
 Locate the ffprobe binary for the current platform.
 
 **Kind**: static method of [<code>FFmpegUtils</code>](#module_FFmpegUtils)  
-**Returns**: <code>Promise.&lt;string&gt;</code> - Path to ffprobe binary  
+**Returns**: <code>Promise.&lt;string&gt;</code> - Resolves with the path to the ffprobe binary.  
 **Throws**:
 
-- <code>Error</code> If ffprobe binary is not found
+- <code>Error</code> If ffprobe binary is not found.
 
 **Author**: zevinDev  
+**Example**  
+```js
+const ffprobePath = await locateFFprobe();
+```
 <a name="module_FFmpegUtils.buildFFmpegArgs"></a>
 
 ### FFmpegUtils.buildFFmpegArgs(options) ⇒ <code>Array.&lt;string&gt;</code>
-Build FFmpeg arguments for audio conversion.
+Build FFmpeg arguments for audio conversion/decoding.
 
 **Kind**: static method of [<code>FFmpegUtils</code>](#module_FFmpegUtils)  
-**Returns**: <code>Array.&lt;string&gt;</code> - FFmpeg arguments array  
+**Returns**: <code>Array.&lt;string&gt;</code> - FFmpeg arguments array.  
 **Author**: zevinDev  
 
 | Param | Type | Default | Description |
 | --- | --- | --- | --- |
-| options | <code>object</code> |  | Conversion options |
-| options.input | <code>string</code> |  | Input file path or 'pipe:0' for stdin |
-| options.output | <code>string</code> |  | Output destination or 'pipe:1' for stdout |
-| [options.sampleRate] | <code>number</code> | <code>44100</code> | Target sample rate |
-| [options.channels] | <code>number</code> | <code>2</code> | Target number of channels |
-| [options.format] | <code>string</code> | <code>&quot;&#x27;f32le&#x27;&quot;</code> | Output format |
-| [options.codec] | <code>string</code> | <code>&quot;&#x27;pcm_f32le&#x27;&quot;</code> | Audio codec |
-| [options.seekPosition] | <code>number</code> |  | Seek position in seconds |
+| options | <code>object</code> |  | Conversion options. |
+| options.input | <code>string</code> |  | Input file path or 'pipe:0' for stdin. |
+| [options.output] | <code>string</code> | <code>&quot;&#x27;pipe:1&#x27;&quot;</code> | Output destination or 'pipe:1' for stdout. |
+| [options.sampleRate] | <code>number</code> | <code>44100</code> | Target sample rate. |
+| [options.channels] | <code>number</code> | <code>2</code> | Target number of channels. |
+| [options.format] | <code>string</code> | <code>&quot;&#x27;f32le&#x27;&quot;</code> | Output format. |
+| [options.codec] | <code>string</code> | <code>&quot;&#x27;pcm_f32le&#x27;&quot;</code> | Audio codec. |
+| [options.seekPosition] | <code>number</code> |  | Seek position in seconds. |
+| [options.extra] | <code>Array.&lt;string&gt;</code> |  | Extra ffmpeg arguments. |
 
+**Example**  
+```js
+const args = buildFFmpegArgs({ input: 'track.flac', sampleRate: 48000 });
+```
 <a name="module_FFmpegUtils.extractMetadata"></a>
 
 ### FFmpegUtils.extractMetadata(filePath, [ffmpegPath]) ⇒ <code>Promise.&lt;Object&gt;</code>
 Extract metadata from an audio file using ffmpeg.
 
 **Kind**: static method of [<code>FFmpegUtils</code>](#module_FFmpegUtils)  
-**Returns**: <code>Promise.&lt;Object&gt;</code> - Metadata object (title, artist, album, duration, etc.)  
+**Returns**: <code>Promise.&lt;Object&gt;</code> - Resolves with metadata object (title, artist, album, duration, etc.).  
 **Throws**:
 
-- <code>Error</code> If extraction fails
+- <code>Error</code> If extraction fails.
 
 **Author**: zevinDev  
 
 | Param | Type | Description |
 | --- | --- | --- |
-| filePath | <code>string</code> | Path to the audio file |
-| [ffmpegPath] | <code>string</code> | Path to ffmpeg binary (auto-detected if not provided) |
+| filePath | <code>string</code> | Path to the audio file. |
+| [ffmpegPath] | <code>string</code> | Path to ffmpeg binary (auto-detected if not provided). |
 
+**Example**  
+```js
+const meta = await extractMetadata('track.flac');
+```
 <a name="module_FFmpegUtils.getAudioInfo"></a>
 
 ### FFmpegUtils.getAudioInfo(filePath, [ffprobePath]) ⇒ <code>Promise.&lt;Object&gt;</code>
 Get detailed audio stream information from a file.
 
 **Kind**: static method of [<code>FFmpegUtils</code>](#module_FFmpegUtils)  
-**Returns**: <code>Promise.&lt;Object&gt;</code> - Audio stream info (sample_rate, channels, etc.)  
+**Returns**: <code>Promise.&lt;Object&gt;</code> - Resolves with audio stream info (sampleRate, channels, bitDepth, duration).  
 **Throws**:
 
-- <code>Error</code> If analysis fails
+- <code>Error</code> If analysis fails.
 
 **Author**: zevinDev  
 
 | Param | Type | Description |
 | --- | --- | --- |
-| filePath | <code>string</code> | Path to the audio file |
-| [ffprobePath] | <code>string</code> | Path to ffprobe binary (auto-detected if not provided) |
+| filePath | <code>string</code> | Path to the audio file. |
+| [ffprobePath] | <code>string</code> | Path to ffprobe binary (auto-detected if not provided). |
 
+**Example**  
+```js
+const info = await getAudioInfo('track.flac');
+```
 <a name="module_FFmpegUtils.createFFmpegProcess"></a>
 
 ### FFmpegUtils.createFFmpegProcess(ffmpegPath, args, [options]) ⇒ <code>ChildProcess</code>
 Create and configure an FFmpeg process for audio conversion.
 
 **Kind**: static method of [<code>FFmpegUtils</code>](#module_FFmpegUtils)  
-**Returns**: <code>ChildProcess</code> - Configured FFmpeg process  
+**Returns**: <code>ChildProcess</code> - Configured FFmpeg process.  
 **Author**: zevinDev  
 
 | Param | Type | Description |
 | --- | --- | --- |
-| ffmpegPath | <code>string</code> | Path to ffmpeg binary |
-| args | <code>Array.&lt;string&gt;</code> | FFmpeg arguments |
-| [options] | <code>object</code> | Spawn options |
+| ffmpegPath | <code>string</code> | Path to ffmpeg binary. |
+| args | <code>Array.&lt;string&gt;</code> | FFmpeg arguments. |
+| [options] | <code>object</code> | Spawn options. |
 
+**Example**  
+```js
+const proc = createFFmpegProcess(ffmpegPath, args);
+```
 <a name="module_FFmpegUtils.killFFmpegProcess"></a>
 
-### FFmpegUtils.killFFmpegProcess(process, [signal])
+### FFmpegUtils.killFFmpegProcess(process, [signal]) ⇒ <code>void</code>
 Kill an FFmpeg process safely.
 
 **Kind**: static method of [<code>FFmpegUtils</code>](#module_FFmpegUtils)  
@@ -1407,19 +1480,32 @@ Kill an FFmpeg process safely.
 
 | Param | Type | Default | Description |
 | --- | --- | --- | --- |
-| process | <code>ChildProcess</code> |  | FFmpeg process to kill |
-| [signal] | <code>string</code> | <code>&quot;&#x27;SIGKILL&#x27;&quot;</code> | Signal to send |
+| process | <code>ChildProcess</code> |  | FFmpeg process to kill. |
+| [signal] | <code>string</code> | <code>&quot;&#x27;SIGKILL&#x27;&quot;</code> | Signal to send. |
 
+**Example**  
+```js
+killFFmpegProcess(proc);
+```
 <a name="getAudioStreamInfo"></a>
 
-## getAudioStreamInfo(ffprobePath, filePath) ⇒ <code>Promise.&lt;{sample\_rate: number, channels: number, duration: number}&gt;</code>
-Get audio stream info (sample rate, channels) from a file using ffprobe.
+## getAudioStreamInfo(ffprobePath, filePath) ⇒ <code>Promise.&lt;{sampleRate: number, channels: number, bitDepth: number, duration: number}&gt;</code>
+Get audio stream info (sample rate, channels, bit depth, duration) from a file using ffprobe.
 
 **Kind**: global function  
-**Returns**: <code>Promise.&lt;{sample\_rate: number, channels: number, duration: number}&gt;</code> - - Audio stream info.  
+**Returns**: <code>Promise.&lt;{sampleRate: number, channels: number, bitDepth: number, duration: number}&gt;</code> - Resolves with audio stream info.  
+**Throws**:
+
+- <code>Error</code> If ffprobe fails or no audio stream info is found, or if JSON parsing fails.
+
+**Author**: zevinDev  
 
 | Param | Type | Description |
 | --- | --- | --- |
 | ffprobePath | <code>string</code> | Path to ffprobe executable. |
 | filePath | <code>string</code> | Path to audio file. |
 
+**Example**  
+```js
+const info = await getAudioStreamInfo('/usr/bin/ffprobe', 'track.flac');// info = { sampleRate: 44100, channels: 2, bitDepth: 16, duration: 123.45 }
+```

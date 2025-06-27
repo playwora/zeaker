@@ -146,8 +146,29 @@ export class StreamManager {
 }
 
 export namespace AudioUtils {
-  function negotiateAudioFormat(trackInfo: any, device: any): any;
-  function scalePCMVolume(buffer: Float32Array, volume: number): Float32Array;
+  function negotiateAudioFormat(
+    trackInfo: any,
+    deviceInfo: any,
+    portaudio: any
+  ): any;
+  function scalePCMVolume(
+    buffer: Buffer | Float32Array,
+    volume: number
+  ): Float32Array;
+  function mixCrossfade(
+    currentBuffers: Buffer[],
+    nextBuffers: Buffer[],
+    crossfadeFrames: number,
+    channels: number,
+    curve?: string
+  ): Buffer[];
+  function shuffleArray<T>(arr: T[]): T[];
+  function validateCrossfadeCurve(curve: string): string;
+  function durationToFrames(
+    durationSeconds: number,
+    sampleRate: number
+  ): number;
+  function getFrameSize(channels: number, format?: string): number;
 }
 
 export namespace ErrorHandler {

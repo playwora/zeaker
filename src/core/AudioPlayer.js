@@ -91,7 +91,8 @@ export class AudioPlayer extends EventEmitter {
 
   /**
    * Set up internal event handlers for manager coordination.
-   * 
+   * Forwards device and stream manager events to the AudioPlayer event emitter.
+   *
    * @private
    * @author zevinDev
    */
@@ -107,14 +108,17 @@ export class AudioPlayer extends EventEmitter {
   }
 
   /**
-   * Play an audio file using ffmpeg for decoding and PortAudio for output.
-   * Uses async streaming with buffer management and error handling.
-   * 
-   * @param {string} filePath - Path to the audio file
-   * @param {number} [startPosition=0] - Position in seconds to start playback
-   * @returns {Promise<void>}
-   * @throws {Error} If playback fails or ffmpeg/PortAudio is not available
+   * Play an audio file using FFmpeg for decoding and PortAudio for output.
+   * Uses async streaming with buffer management and robust error handling.
+   *
+   * @param {string} filePath - Path to the audio file to play.
+   * @param {number} [startPosition=0] - Position in seconds to start playback from.
+   * @returns {Promise<void>} Resolves when playback starts.
+   * @throws {TypeError} If filePath is not a string or startPosition is invalid.
+   * @throws {Error} If playback fails or FFmpeg/PortAudio is not available.
    * @author zevinDev
+   * @example
+   * await player.play('track.flac', 10); // Start at 10 seconds
    */
   async play(filePath, startPosition = 0) {
     try {
@@ -136,6 +140,7 @@ export class AudioPlayer extends EventEmitter {
       this._audioBuffer = [];
       this._audioBufferSize = 0;
       this._ffmpegEnded = false;
+      // Set _framesPlayed based on startPosition and sample rate (will be set below)
       this._framesPlayed = 0;
       this._currentDuration = null;
       const trackInfo = await getAudioInfo(filePath);
@@ -149,8 +154,10 @@ export class AudioPlayer extends EventEmitter {
         await this._deviceManager.setOutputDevice(defaultDevice.index);
       }
       const device = this._deviceManager.getCurrentDevice();
-      const audioFormat = negotiateAudioFormat(trackInfo, device);
+      const audioFormat = negotiateAudioFormat(trackInfo, device, portaudio);
       this._currentSampleRate = audioFormat.sampleRate;
+      // Set _framesPlayed based on startPosition and sample rate
+      this._framesPlayed = Math.floor(startPosition * this._currentSampleRate);
       
       // Create FFmpeg process with fast startup flags
       const ffmpegArgs = buildFFmpegArgs({
@@ -275,6 +282,12 @@ export class AudioPlayer extends EventEmitter {
       this._audioStream = streamId;
       
       this.emit('play', filePath);
+      // Emit resampleInfo event with original and playback sample rate/channels
+      this.emit('resampleInfo', {
+        sampleRate: [trackInfo?.sampleRate, audioFormat?.sampleRate],
+        bitDepth: [trackInfo?.bitDepth, audioFormat?.bitDepth],
+        channels: [trackInfo?.channels, audioFormat?.channels]
+      });
       
       // Start currentTime event interval
       if (this._currentTimeInterval) clearInterval(this._currentTimeInterval);
@@ -317,8 +330,10 @@ export class AudioPlayer extends EventEmitter {
 
   /**
    * Handle automatic playlist progression.
-   * 
+   * Advances to the next track or emits playlistEnd if finished.
+   *
    * @private
+   * @returns {Promise<void>}
    * @author zevinDev
    */
   async _handlePlaylistNext() {
@@ -337,9 +352,9 @@ export class AudioPlayer extends EventEmitter {
 
   /**
    * Pause playback.
-   * 
-   * @returns {Promise<void>}
-   * @throws {Error} If pause fails
+   *
+   * @returns {Promise<void>} Resolves when playback is paused.
+   * @throws {Error} If pause fails.
    * @fires AudioPlayer#pause
    * @author zevinDev
    */
@@ -366,9 +381,9 @@ export class AudioPlayer extends EventEmitter {
 
   /**
    * Resume playback.
-   * 
-   * @returns {Promise<void>}
-   * @throws {Error} If resume fails
+   *
+   * @returns {Promise<void>} Resolves when playback resumes.
+   * @throws {Error} If resume fails.
    * @fires AudioPlayer#resume
    * @author zevinDev
    */
@@ -381,7 +396,16 @@ export class AudioPlayer extends EventEmitter {
       if (this._audioStream && typeof this._audioStream.resume === 'function') {
         this._audioStream.resume();
       }
-      
+      // Restart currentTime event interval after resume
+      if (this._currentTimeInterval) {
+        clearInterval(this._currentTimeInterval);
+        this._currentTimeInterval = null;
+      }
+      this._currentTimeInterval = setInterval(() => {
+        if (this._isPlaying && !this._paused) {
+          this.emit('currentTime', this.getCurrentTime());
+        }
+      }, 250);
       this.emit('resume', this._currentTrack);
     } catch (error) {
       this.emit('error', error);
@@ -392,9 +416,9 @@ export class AudioPlayer extends EventEmitter {
 
   /**
    * Stop playback and clean up resources.
-   * 
-   * @returns {Promise<void>}
-   * @throws {Error} If stop fails
+   *
+   * @returns {Promise<void>} Resolves when playback is stopped.
+   * @throws {Error} If stop fails.
    * @fires AudioPlayer#stop
    * @author zevinDev
    */
@@ -450,10 +474,10 @@ export class AudioPlayer extends EventEmitter {
 
   /**
    * Seek to a specific position in the current track.
-   * 
-   * @param {number} positionSeconds - Position in seconds
-   * @returns {Promise<void>}
-   * @throws {Error} If seeking fails
+   *
+   * @param {number} positionSeconds - Position in seconds to seek to.
+   * @returns {Promise<void>} Resolves when seek is complete.
+   * @throws {Error} If seeking fails or no track loaded.
    * @fires AudioPlayer#seek
    * @author zevinDev
    */
@@ -474,10 +498,10 @@ export class AudioPlayer extends EventEmitter {
 
   /**
    * Set playback volume.
-   * 
-   * @param {number} level - Volume level between 0.0 and 1.0
-   * @returns {Promise<void>}
-   * @throws {Error} If setting volume fails or in bit-perfect mode
+   *
+   * @param {number} level - Volume level between 0.0 and 1.0.
+   * @returns {Promise<void>} Resolves when volume is set.
+   * @throws {Error} If setting volume fails or in bit-perfect mode.
    * @author zevinDev
    */
   async setVolume(level) {
@@ -501,8 +525,8 @@ export class AudioPlayer extends EventEmitter {
 
   /**
    * Get current volume level.
-   * 
-   * @returns {number} Current volume (0.0-1.0)
+   *
+   * @returns {number} Current volume (0.0-1.0).
    * @author zevinDev
    */
   getVolume() {
@@ -511,9 +535,9 @@ export class AudioPlayer extends EventEmitter {
 
   /**
    * Extract metadata from the current track.
-   * 
-   * @returns {Promise<Object>} Metadata object
-   * @throws {Error} If extraction fails or no track loaded
+   *
+   * @returns {Promise<Object>} Metadata object for the current track.
+   * @throws {Error} If extraction fails or no track loaded.
    * @author zevinDev
    */
   async getMetadata() {
@@ -541,7 +565,8 @@ export class AudioPlayer extends EventEmitter {
 
   /**
    * Get current track duration in seconds.
-   * @returns {number|null} Duration in seconds, or null if unknown
+   *
+   * @returns {number|null} Duration in seconds, or null if unknown.
    * @author zevinDev
    */
   getDuration() {
@@ -550,10 +575,10 @@ export class AudioPlayer extends EventEmitter {
 
   /**
    * Play a playlist of audio files sequentially.
-   * 
-   * @param {string[]} playlist - Array of file paths
-   * @returns {Promise<void>}
-   * @throws {Error} If playlist is invalid or playback fails
+   *
+   * @param {string[]} playlist - Array of file paths to play.
+   * @returns {Promise<void>} Resolves when playlist starts.
+   * @throws {Error} If playlist is invalid or playback fails.
    * @fires AudioPlayer#playlistEnd
    * @author zevinDev
    */
@@ -575,8 +600,8 @@ export class AudioPlayer extends EventEmitter {
 
   /**
    * Skip to the next track in the playlist.
-   * 
-   * @returns {Promise<void>}
+   *
+   * @returns {Promise<void>} Resolves when next track starts.
    * @author zevinDev
    */
   async skip() {
@@ -595,8 +620,8 @@ export class AudioPlayer extends EventEmitter {
 
   /**
    * Skip to the previous track in the playlist.
-   * 
-   * @returns {Promise<void>}
+   *
+   * @returns {Promise<void>} Resolves when previous track starts.
    * @author zevinDev
    */
   async previous() {
@@ -614,8 +639,9 @@ export class AudioPlayer extends EventEmitter {
   }
 
   /**
-   * Stop playlist playback.
-   * 
+   * Stop playlist playback and current track.
+   *
+   * @returns {void}
    * @author zevinDev
    */
   stopPlaylist() {
@@ -625,8 +651,9 @@ export class AudioPlayer extends EventEmitter {
 
   /**
    * Enable or disable shuffle mode for playlists.
-   * 
-   * @param {boolean} [enable=true] - Enable shuffle if true
+   *
+   * @param {boolean} [enable=true] - Enable shuffle if true.
+   * @returns {void}
    * @author zevinDev
    */
   setPlaylistShuffle(enable = true) {
@@ -635,9 +662,10 @@ export class AudioPlayer extends EventEmitter {
 
   /**
    * Set repeat mode for playlists.
-   * 
-   * @param {'off'|'one'|'all'} mode - Repeat mode
-   * @throws {Error} If invalid repeat mode
+   *
+   * @param {'off'|'one'|'all'} mode - Repeat mode.
+   * @returns {void}
+   * @throws {Error} If invalid repeat mode.
    * @author zevinDev
    */
   setPlaylistRepeat(mode = 'off') {
@@ -646,10 +674,10 @@ export class AudioPlayer extends EventEmitter {
 
   /**
    * Enable gapless playback for the next track.
-   * 
-   * @param {string} nextTrack - Path to the next audio file
-   * @returns {Promise<void>}
-   * @throws {Error} If bit-perfect mode is enabled
+   *
+   * @param {string} nextTrack - Path to the next audio file.
+   * @returns {Promise<void>} Resolves when gapless transition is set up.
+   * @throws {Error} If bit-perfect mode is enabled or no active stream.
    * @author zevinDev
    */
   async playGapless(nextTrack) {
@@ -706,11 +734,11 @@ export class AudioPlayer extends EventEmitter {
 
   /**
    * Crossfade between the current and next track.
-   * 
-   * @param {string} nextTrack - Path to the next audio file
-   * @param {number} [duration=3] - Crossfade duration in seconds
-   * @returns {Promise<void>}
-   * @throws {Error} If bit-perfect mode is enabled
+   *
+   * @param {string} nextTrack - Path to the next audio file.
+   * @param {number} [duration=3] - Crossfade duration in seconds.
+   * @returns {Promise<void>} Resolves when crossfade is complete.
+   * @throws {Error} If bit-perfect mode is enabled or no active stream.
    * @author zevinDev
    */
   async crossfadeTo(nextTrack, duration = 3) {
@@ -741,12 +769,12 @@ export class AudioPlayer extends EventEmitter {
   }
 
   /**
-   * Play from a streaming source.
-   * 
-   * @param {string} url - Streaming source URL
-   * @param {object} [options] - Streaming options
-   * @returns {Promise<void>}
-   * @throws {Error} If streaming fails
+   * Play from a streaming source (e.g., internet radio).
+   *
+   * @param {string} url - Streaming source URL.
+   * @param {object} [options] - Streaming options.
+   * @returns {Promise<void>} Resolves when streaming starts.
+   * @throws {Error} If streaming fails.
    * @author zevinDev
    */
   async playStream(url, options = {}) {
@@ -785,8 +813,9 @@ export class AudioPlayer extends EventEmitter {
 
   /**
    * List available PortAudio output devices.
-   * 
-   * @returns {Promise<Array>} Array of device objects
+   *
+   * @static
+   * @returns {Promise<Array>} Array of device objects.
    * @author zevinDev
    */
   static async listOutputDevices() {
@@ -796,10 +825,10 @@ export class AudioPlayer extends EventEmitter {
 
   /**
    * Set the output device for playback.
-   * 
-   * @param {number} deviceIndex - Device index
-   * @returns {Promise<void>}
-   * @throws {Error} If device is not found or not output-capable
+   *
+   * @param {number} deviceIndex - Device index to use for output.
+   * @returns {Promise<void>} Resolves when device is set.
+   * @throws {Error} If device is not found or not output-capable.
    * @fires AudioPlayer#deviceChange
    * @author zevinDev
    */
@@ -830,10 +859,10 @@ export class AudioPlayer extends EventEmitter {
 
   /**
    * Enable or disable bit-perfect output mode.
-   * 
-   * @param {boolean|object} options - Bit-perfect options
-   * @returns {Promise<void>}
-   * @throws {Error} If currently playing and unable to restart
+   *
+   * @param {boolean|object} options - Bit-perfect options or true to enable.
+   * @returns {Promise<void>} Resolves when bit-perfect mode is set.
+   * @throws {Error} If currently playing and unable to restart.
    * @author zevinDev
    */
   async setBitPerfect(options = true) {
@@ -856,8 +885,9 @@ export class AudioPlayer extends EventEmitter {
 
   /**
    * Attach a visualization callback for PCM data.
-   * 
-   * @param {Function} callback - Function to receive PCM data
+   *
+   * @param {Function} callback - Function to receive PCM data.
+   * @returns {void}
    * @author zevinDev
    */
   onVisualization(callback) {
@@ -866,8 +896,9 @@ export class AudioPlayer extends EventEmitter {
 
   /**
    * Set buffer size/latency for playback.
-   * 
-   * @param {number} frames - Buffer size in frames
+   *
+   * @param {number} frames - Buffer size in frames.
+   * @returns {void}
    * @author zevinDev
    */
   setBufferSize(frames) {
@@ -876,8 +907,9 @@ export class AudioPlayer extends EventEmitter {
 
   /**
    * Set the crossfade duration.
-   * 
-   * @param {number} duration - Duration in seconds
+   *
+   * @param {number} duration - Duration in seconds.
+   * @returns {void}
    * @fires AudioPlayer#crossfadeConfigChange
    * @author zevinDev
    */
@@ -889,8 +921,9 @@ export class AudioPlayer extends EventEmitter {
 
   /**
    * Set the crossfade curve.
-   * 
-   * @param {string} curve - Curve type
+   *
+   * @param {string} curve - Curve type.
+   * @returns {void}
    * @fires AudioPlayer#crossfadeConfigChange
    * @author zevinDev
    */
@@ -902,8 +935,8 @@ export class AudioPlayer extends EventEmitter {
 
   /**
    * Get current playback status.
-   * 
-   * @returns {object} Playback status
+   *
+   * @returns {object} Playback status object with isPlaying, isPaused, currentTrack, etc.
    * @author zevinDev
    */
   getStatus() {
@@ -922,8 +955,8 @@ export class AudioPlayer extends EventEmitter {
 
   /**
    * Get manager instances for advanced usage.
-   * 
-   * @returns {object} Manager instances
+   *
+   * @returns {object} Object containing device, playlist, effects, and stream managers.
    * @author zevinDev
    */
   getManagers() {
@@ -939,7 +972,8 @@ export class AudioPlayer extends EventEmitter {
    * Test PortAudio output with a synchronous 440Hz sine wave (2 seconds).
    * Useful for debugging C++/Electron buffer issues.
    *
-   * @returns {Promise<void>}
+   * @static
+   * @returns {Promise<void>} Resolves when test is complete.
    * @author zevinDev
    */
   static async testSineWave() {
@@ -992,7 +1026,8 @@ export class AudioPlayer extends EventEmitter {
 
   /**
    * Get current playback time in seconds.
-   * @returns {number} Elapsed playback time in seconds
+   *
+   * @returns {number} Elapsed playback time in seconds.
    * @author zevinDev
    */
   getCurrentTime() {
