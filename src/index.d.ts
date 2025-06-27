@@ -96,6 +96,14 @@ export class AudioPlayer {
     event: "deviceChange",
     handler: (info: { index: number; name: string; info: DeviceInfo }) => void
   ): void;
+  on(
+    event: "resampleInfo",
+    handler: (info: {
+      sampleRate: number;
+      bitDepth: number;
+      channels: number;
+    }) => void
+  ): void;
 }
 
 export class DeviceManager {
