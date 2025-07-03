@@ -818,9 +818,9 @@ export class AudioPlayer extends EventEmitter {
    * @returns {Promise<Array>} Array of device objects.
    * @author zevinDev
    */
-  static async listOutputDevices() {
+  static async listOutputDevices(hostApiIndex = undefined) {
     const deviceManager = new DeviceManager();
-    return await deviceManager.listOutputDevices();
+    return await deviceManager.listOutputDevices(hostApiIndex);
   }
 
   /**
@@ -842,12 +842,12 @@ export class AudioPlayer extends EventEmitter {
           name: result.device.name,
           info: result.device
         });
-        
-        // If currently playing, restart with new device
+        // If currently playing, restart with new device and keep seek position
         if (this._isPlaying) {
           const track = this._currentTrack;
+          const seekPosition = this.getCurrentTime();
           await this.stop();
-          await this.play(track);
+          await this.play(track, seekPosition);
         }
       }
     } catch (error) {

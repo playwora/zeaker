@@ -47,23 +47,30 @@ export class DeviceManager {
   }
 
   /**
-   * List available PortAudio output devices.
-   * 
-   * @returns {Promise<Array<{index: number, name: string, maxOutputChannels: number, defaultSampleRate: number}>>}
+   * List available PortAudio output devices, optionally filtered by host API.
+   *
+   * @param {number} [hostApiIndex] - Optional host API index to filter devices (see PortAudio host APIs)
+   * @returns {Promise<Array<{index: number, name: string, maxOutputChannels: number, defaultSampleRate: number, hostApi?: number}>>}
    * @throws {Error} If device listing fails
    * @author zevinDev
    */
-  async listOutputDevices() {
+  async listOutputDevices(hostApiIndex) {
     try {
       const portaudio = await this._initPortAudio();
       const devices = await portaudio.getDevices();
-      
       if (!devices || !Array.isArray(devices) || devices.length === 0) {
         throw new Error('No audio devices found.');
       }
-      
-      // Filter for output-capable devices
-      return devices.filter(d => d.maxOutputChannels > 0);
+      // Explicitly coerce hostApiIndex to number if provided
+      const filterHostApi = typeof hostApiIndex !== 'undefined';
+      const coercedHostApiIndex = filterHostApi ? Number(hostApiIndex) : undefined;
+      const filtered = devices.filter(d => {
+        const isOutput = d.maxOutputChannels > 0;
+        // Only match hostApi if filter is active
+        const matchesHostApi = filterHostApi ? d.hostApi === coercedHostApiIndex : true;
+        return isOutput && matchesHostApi;
+      });
+      return filtered;
     } catch (error) {
       handleError(error, 'listOutputDevices');
       throw error;
